@@ -7,6 +7,7 @@
     <meta name="description" content="Permainan catur bergaya koboi dengan AI bot yang menantang!">
     <link rel="icon" href="https://files.catbox.moe/9cq0yk.jpg" type="image/jpeg">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="update-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet"></head>
 <body>
     <div class="western-bg"></div>
@@ -153,7 +154,7 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="bot-setting-card">
                         <h4>🤖 Beta-Bot (Hitam)</h4>
                         <div class="setting-row">
@@ -210,15 +211,53 @@
                 </div>
 
                 <div class="setting-row">
-                    <label for="gameSpeed">Kecepatan Game:</label>
-                    <div class="speed-control-container">
-                        <input type="range" id="gameSpeed" class="speed-slider" min="0.5" max="3" step="0.1" value="1.0">
-                        <div class="speed-display">
-                            <span id="gameSpeedValue" class="speed-value">⚡ 1.0s</span>
-                            <div class="speed-labels">
-                                <span class="speed-label-min">⚡ Cepat</span>
-                                <span class="speed-label-max">🐌 Lambat</span>
+                    
+                    <div class="speed-selection-container">
+                        <div class="speed-guide-header" onclick="toggleSpeedGuide(this)">
+                            <h5 class="speed-selection-title">⚡ Pilih Kecepatan Game</h5>
+                            <span class="speed-guide-toggle">▼</span>
+                        </div>
+                        <div class="speed-cards-grid" style="display: none;">
+                            <div class="speed-card" data-speed="0.5" data-name="ultra">
+                                <div class="speed-card-icon">⚡⚡</div>
+                                <div class="speed-card-name">Ultra Kilat</div>
+                                <div class="speed-card-value">0.5s</div>
+                                <div class="speed-card-desc">Kecepatan Maksimum</div>
                             </div>
+                            <div class="speed-card" data-speed="0.8" data-name="lightning">
+                                <div class="speed-card-icon">⚡</div>
+                                <div class="speed-card-name">Kilat</div>
+                                <div class="speed-card-value">0.8s</div>
+                                <div class="speed-card-desc">Super Cepat</div>
+                            </div>
+                            <div class="speed-card" data-speed="1.0" data-name="fast">
+                                <div class="speed-card-icon">🚀</div>
+                                <div class="speed-card-name">Cepat</div>
+                                <div class="speed-card-value">1.0s</div>
+                                <div class="speed-card-desc">Permainan Dinamis</div>
+                            </div>
+                            <div class="speed-card selected" data-speed="1.5" data-name="normal">
+                                <div class="speed-card-icon">⭐</div>
+                                <div class="speed-card-name">Normal</div>
+                                <div class="speed-card-value">1.5s</div>
+                                <div class="speed-card-desc">Seimbang & Nyaman</div>
+                            </div>
+                            <div class="speed-card" data-speed="2.0" data-name="slow">
+                                <div class="speed-card-icon">🐌</div>
+                                <div class="speed-card-name">Lambat</div>
+                                <div class="speed-card-value">2.0s</div>
+                                <div class="speed-card-desc">Santai & Tenang</div>
+                            </div>
+                            <div class="speed-card" data-speed="3.0" data-name="turtle">
+                                <div class="speed-card-icon">🐢</div>
+                                <div class="speed-card-name">Kura-kura</div>
+                                <div class="speed-card-value">3.0s</div>
+                                <div class="speed-card-desc">Analisis Mendalam</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="gameSpeed" value="1.5">
+                        <div class="current-speed-display">
+                            <span class="speed-indicator">Kecepatan Terpilih: <span id="gameSpeedValue" class="selected-speed-name">⭐ Normal (1.5s)</span></span>
                         </div>
                     </div>
                 </div>
@@ -236,7 +275,7 @@
                     <button id="resetToDefault" class="reset-btn">🔄 Reset Default</button>
                     <button id="saveSettings" class="save-btn">💾 Simpan Pengaturan</button>
                 </div>
-                
+
             </div>
 
             <button id="startGameFromWelcome" class="start-game-btn" disabled>🎮 MULAI PERMAINAN</button>
@@ -285,7 +324,14 @@
 
         <!-- Console Log -->
         <div class="console-log">
-            <h3>Log Permainan</h3>
+            <div class="log-header">
+                <h3>📋 Log Permainan</h3>
+                <div class="log-controls">
+                    <span id="logCounter" class="log-counter">0 logs</span>
+                    <button id="downloadLogBtn" class="log-btn download-btn" title="Download Log">📥</button>
+                    <button id="clearLogBtn" class="log-btn clear-btn" title="Hapus Log">🗑️</button>
+                </div>
+            </div>
             <div id="gameLog" class="log-content"></div>
         </div>
 
@@ -338,6 +384,7 @@
 
     <script src="chess-engine.js"></script>
     <script src="script.js"></script>
+    <script src="update.js"></script>
     <script src="Wilykun.js"></script>
 </body>
 </html>

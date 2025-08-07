@@ -676,6 +676,30 @@ class ChessEngine {
     // Check if the game is over (checkmate or stalemate) - International Chess Standards
     checkGameEnd() {
         const currentPlayer = this.currentPlayer;
+        
+        // ATURAN INTERNASIONAL CATUR FIDE: 
+        // 1. Jika raja ditangkap/hilang = KEMENANGAN LANGSUNG (bukan skakmat)
+        // 2. Jika raja tidak ada di papan = KEMENANGAN OTOMATIS untuk lawan
+        
+        const whiteKing = this.findKing('white');
+        const blackKing = this.findKing('black');
+        
+        // Check if any king is missing/captured - IMMEDIATE WIN CONDITION
+        if (!whiteKing) {
+            // White king captured/missing = Black wins immediately
+            this.gameStatus = 'black_wins';
+            console.log(`👑 RAJA PUTIH HILANG/DITANGKAP: Hitam menang otomatis! (Aturan FIDE)`);
+            return 'king_captured';
+        }
+        
+        if (!blackKing) {
+            // Black king captured/missing = White wins immediately  
+            this.gameStatus = 'white_wins';
+            console.log(`👑 RAJA HITAM HILANG/DITANGKAP: Putih menang otomatis! (Aturan FIDE)`);
+            return 'king_captured';
+        }
+        
+        // Both kings exist - check for traditional checkmate/stalemate
         const validMoves = this.getAllValidMoves(currentPlayer);
 
         // No valid moves available for current player
@@ -683,37 +707,38 @@ class ChessEngine {
             if (this.isInCheck(currentPlayer)) {
                 // King is in check and no valid moves = CHECKMATE
                 this.gameStatus = currentPlayer === 'white' ? 'black_wins' : 'white_wins';
-                console.log(`CHECKMATE: ${currentPlayer} king is in check with no valid moves`);
+                console.log(`♔ SKAKMAT: ${currentPlayer} raja dalam skak tanpa langkah legal - ${currentPlayer === 'white' ? 'Hitam' : 'Putih'} menang!`);
                 return 'checkmate';
             } else {
                 // King is not in check but no valid moves = STALEMATE (DRAW)
                 this.gameStatus = 'draw';
-                console.log(`STALEMATE: ${currentPlayer} has no valid moves but king is not in check`);
+                console.log(`🤝 PAT (STALEMATE): ${currentPlayer} tidak memiliki langkah legal tapi raja tidak dalam skak - SERI!`);
                 return 'stalemate';
             }
         }
 
-        // Check for insufficient material (automatic draw)
+        // Check for insufficient material (automatic draw according to FIDE rules)
         if (this.isInsufficientMaterial()) {
             this.gameStatus = 'draw';
-            console.log(`DRAW: Insufficient material to checkmate`);
+            console.log(`🤝 SERI: Material tidak cukup untuk skakmat (Aturan FIDE)`);
             return 'draw_insufficient_material';
         }
 
-        // Check for threefold repetition
+        // Check for threefold repetition (FIDE rule)
         if (this.isThreefoldRepetition()) {
             this.gameStatus = 'draw';
-            console.log(`DRAW: Threefold repetition`);
+            console.log(`🤝 SERI: Pengulangan posisi 3 kali (Aturan FIDE)`);
             return 'draw_repetition';
         }
 
-        // Check for 50-move rule
+        // Check for 50-move rule (FIDE rule)
         if (this.isFiftyMoveRule()) {
             this.gameStatus = 'draw';
-            console.log(`DRAW: 50-move rule (no pawn move or capture)`);
+            console.log(`🤝 SERI: Aturan 50 langkah tanpa pion atau tangkapan (Aturan FIDE)`);
             return 'draw_fifty_moves';
         }
 
+        // Game continues
         return null;
     }
 

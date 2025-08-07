@@ -49,6 +49,7 @@ class ChessGame {
 
         this.setupWelcomeScreen();
         this.setupEventListeners();
+        this.updateLogCounter();
     }
 
     setupWelcomeScreen() {
@@ -64,70 +65,107 @@ class ChessGame {
         // Update difficulty options untuk bot vs bot yang lebih balanced
         this.updateDifficultyOptions();
 
-        // Update speed slider for faster gameplay with better UX
-        const speedSlider = document.getElementById('gameSpeed');
-        const speedValue = document.getElementById('gameSpeedValue');
+        // Initialize speed guide as collapsed by default
+        const speedGuideContent = document.querySelector('.speed-guide-content');
+        if (speedGuideContent) {
+            speedGuideContent.classList.add('collapsed');
+        }
+
+        // Setup speed card selection system
+        const speedCards = document.querySelectorAll('.speed-card');
+        const speedInput = document.getElementById('gameSpeed');
+        const speedValueDisplay = document.getElementById('gameSpeedValue');
         
-        if (speedSlider && speedValue) {
-            speedSlider.min = '0.5';
-            speedSlider.max = '3';
-            speedSlider.step = '0.1';
-            speedSlider.value = '1.5'; // Set default to normal speed (1.5 seconds)
+        if (speedCards.length > 0 && speedInput && speedValueDisplay) {
+            // Initialize engine speed
+            if (this.engine) {
+                this.engine.botSpeed = 1500; // 1.5 second default
+            }
             
-            // Add smooth update for speed display with accurate timing
-            speedSlider.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                const displayValue = value.toFixed(1);
-                
-                // Update engine speed immediately for real-time feedback
-                if (this.engine) {
-                    this.engine.botSpeed = value * 1000;
-                }
-                
-                // Add smooth animated transition for speed changes
-                speedValue.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-                speedValue.style.transform = 'scale(1.05)';
-                
-                setTimeout(() => {
-                    speedValue.style.transform = 'scale(1)';
-                }, 150);
-                
-                // Add visual feedback for speed range dengan styling yang konsisten
-                const percentage = ((value - 0.5) / (3 - 0.5)) * 100;
-                let speedText = '';
-                let speedClass = '';
-                
-                if (value <= 1.0) { // Fast speed (0.5-1.0s)
-                    speedValue.style.background = 'linear-gradient(135deg, #32CD32, #228B22)';
-                    speedValue.style.borderColor = '#32CD32';
-                    speedValue.style.color = '#FFF';
-                    speedText = `⚡ ${displayValue}s`;
-                    speedValue.title = 'Kecepatan Cepat';
-                } else if (value <= 2.0) { // Normal speed (1.0-2.0s)
-                    speedValue.style.background = 'linear-gradient(135deg, #FFD700, #DAA520)';
-                    speedValue.style.borderColor = '#FFD700';
-                    speedValue.style.color = '#000';
-                    speedText = `⚡ ${displayValue}s`;
-                    speedValue.title = 'Kecepatan Normal';
-                } else { // Slow speed (2.0-3.0s)
-                    speedValue.style.background = 'linear-gradient(135deg, #FF6347, #DC143C)';
-                    speedValue.style.borderColor = '#FF6347';
-                    speedValue.style.color = '#FFF';
-                    speedText = `🐌 ${displayValue}s`;
-                    speedValue.title = 'Kecepatan Lambat';
-                }
-                
-                speedValue.textContent = speedText;
+            // Handle speed card selection
+            speedCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    // Remove selected class from all cards
+                    speedCards.forEach(c => c.classList.remove('selected'));
+                    
+                    // Add selected class to clicked card
+                    card.classList.add('selected');
+                    
+                    // Get speed value
+                    const speed = parseFloat(card.dataset.speed);
+                    const speedName = card.dataset.name;
+                    
+                    // Update hidden input
+                    speedInput.value = speed;
+                    
+                    // Update engine speed
+                    if (this.engine) {
+                        this.engine.botSpeed = speed * 1000;
+                        console.log(`Speed updated to: ${speed}s (${this.engine.botSpeed}ms)`);
+                    }
+                    
+                    // Save speed setting
+                    localStorage.setItem('chessGameSpeed', speed.toString());
+                    
+                    // Update display
+                    const speedNameMap = {
+                        'ultra': '⚡⚡ Ultra Kilat',
+                        'lightning': '⚡ Kilat', 
+                        'fast': '🚀 Cepat',
+                        'normal': '⭐ Normal',
+                        'slow': '🐌 Lambat',
+                        'turtle': '🐢 Kura-kura'
+                    };
+                    
+                    speedValueDisplay.textContent = `${speedNameMap[speedName]} (${speed}s)`;
+                    
+                    // Add selection animation
+                    card.style.transform = 'translateY(-5px) scale(1.05)';
+                    setTimeout(() => {
+                        card.style.transform = '';
+                    }, 200);
+                });
             });
             
-            // Initialize display with proper styling untuk normal speed
-            const initialValue = parseFloat(speedSlider.value);
-            speedValue.textContent = `⚡ ${initialValue.toFixed(1)}s`;
-            speedValue.style.background = 'linear-gradient(135deg, #FFD700, #DAA520)';
-            speedValue.style.borderColor = '#FFD700';
-            speedValue.style.color = '#000';
-            speedValue.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-            speedValue.title = 'Kecepatan Normal';
+            // Load saved speed setting and select appropriate card
+            const savedSpeed = localStorage.getItem('chessGameSpeed');
+            if (savedSpeed) {
+                const speedValue = parseFloat(savedSpeed);
+                speedInput.value = speedValue;
+                
+                if (this.engine) {
+                    this.engine.botSpeed = speedValue * 1000;
+                }
+                
+                // Find and select the closest speed card
+                let closestCard = null;
+                let closestDiff = Infinity;
+                
+                speedCards.forEach(card => {
+                    const cardSpeed = parseFloat(card.dataset.speed);
+                    const diff = Math.abs(cardSpeed - speedValue);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestCard = card;
+                    }
+                });
+                
+                if (closestCard) {
+                    speedCards.forEach(c => c.classList.remove('selected'));
+                    closestCard.classList.add('selected');
+                    
+                    const speedName = closestCard.dataset.name;
+                    const speedNameMap = {
+                        'ultra': '⚡⚡ Ultra Kilat',
+                        'lightning': '⚡ Kilat', 
+                        'fast': '🚀 Cepat',
+                        'normal': '⭐ Normal',
+                        'slow': '🐌 Lambat',
+                        'turtle': '🐢 Kura-kura'
+                    };
+                    speedValueDisplay.textContent = `${speedNameMap[speedName]} (${speedValue}s)`;
+                }
+            }
         }
 
         // Handle mode selection
@@ -630,14 +668,36 @@ class ChessGame {
     }
 
     makeBotMove() {
+        // Advanced anti-stuck system dengan multiple checks
+        if (this.botThinking) {
+            console.warn('Bot is already thinking, skipping move');
+            return;
+        }
+
+        if (this.isPaused) {
+            console.log('Game is paused, skipping bot move');
+            return;
+        }
+
         // Check for game end before starting
         const availableMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
         if (availableMoves.length === 0 || this.engine.isGameOver()) {
+            console.log('No moves available or game over, ending game');
             this.endGame();
             return;
         }
 
         this.botThinking = true;
+        
+        // Anti-stuck timeout mechanism
+        const botMoveTimeout = setTimeout(() => {
+            console.error('Bot move timeout - forcing recovery');
+            this.botThinking = false;
+            if (!this.engine.isGameOver() && !this.isPaused) {
+                setTimeout(() => this.makeBotMove(), 100);
+            }
+        }, Math.max(this.engine.botSpeed * 2, 2000)); // Max 2 seconds timeout
+
         let currentPlayerName;
 
         if (this.engine.gameMode === 'bot-vs-bot') {
@@ -664,96 +724,121 @@ class ChessGame {
                 this.engine.botWhiteDifficulty : this.engine.botBlackDifficulty;
         }
 
-        // Maksimal optimasi thinking time untuk anti-lag
-        let thinkingTime = Math.max(100, this.engine.botSpeed * 0.3);
+        // Use actual bot speed setting dari localStorage atau engine
+        const actualSpeed = this.engine.botSpeed || 1000;
+        let thinkingTime = Math.max(50, Math.min(actualSpeed * 0.3, 500));
 
-        // Super optimasi untuk bot vs bot - kurangi delay drastis
-        if (this.engine.gameMode === 'bot-vs-bot') {
-            thinkingTime = Math.max(50, this.engine.botSpeed * 0.2);
-        }
+        console.log(`Bot ${currentPlayerName} thinking for ${thinkingTime}ms (speed: ${actualSpeed}ms)`);
 
-        // Gunakan requestIdleCallback jika tersedia untuk performa maksimal
+        // Robust bot move execution
         const executeBotMove = () => {
             try {
+                // Clear timeout since we're executing now
+                clearTimeout(botMoveTimeout);
+
+                // Double check game state before executing
+                if (this.isPaused || this.engine.isGameOver()) {
+                    console.log('Game state changed during thinking, aborting');
+                    this.botThinking = false;
+                    return;
+                }
+
                 const botMove = this.engine.getBotMove(currentDifficulty);
 
-                if (botMove) {
+                if (botMove && this.engine.isValidMove(botMove.from.row, botMove.from.col, botMove.to.row, botMove.to.col)) {
                     const move = this.engine.makeMove(
                         botMove.from.row, botMove.from.col,
                         botMove.to.row, botMove.to.col
                     );
 
-                    // Track captures tanpa throttling untuk akurasi
+                    // Track captures
                     if (move.captured) {
                         this.trackCapture(move);
                     }
 
-                    // Update UI dengan batch yang lebih efisien
+                    // Update UI efficiently
                     requestAnimationFrame(() => {
                         this.updateBoard();
                         this.updateGameInfo();
-                        
-                        // Log move hanya jika diperlukan (throttle logging)
-                        if (this.engine.gameHistory.length % 3 === 0 || move.captured || this.engine.isInCheck(this.engine.currentPlayer)) {
-                            this.logMove(this.formatMove(move));
-                        }
-                        
                         this.updateInlineStats();
                     });
 
-                    // Animasi yang lebih ringan
-                    const targetSquare = this.getSquareElement(botMove.to.row, botMove.to.col);
-                    if (targetSquare && this.engine.gameMode !== 'bot-vs-bot') {
-                        targetSquare.classList.add('piece-moving');
-                        setTimeout(() => targetSquare.classList.remove('piece-moving'), 100);
+                    // Log every move immediately for accurate real-time tracking
+                    this.logMove(this.formatMove(move));
+
+                    // Visual feedback for non-bot-vs-bot modes
+                    if (this.engine.gameMode !== 'bot-vs-bot') {
+                        const targetSquare = this.getSquareElement(botMove.to.row, botMove.to.col);
+                        if (targetSquare) {
+                            targetSquare.classList.add('piece-moving');
+                            setTimeout(() => targetSquare.classList.remove('piece-moving'), 150);
+                        }
                     }
 
                     this.botThinking = false;
 
-                    // Super optimasi: Check game over tanpa debouncing
-                    const nextPlayerMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
-                    if (nextPlayerMoves.length === 0) {
+                    // Check for game end after move
+                    const gameEndResult = this.engine.checkGameEnd();
+                    if (gameEndResult) {
+                        console.log(`Game ending: ${gameEndResult}`);
                         this.endGame();
                         return;
                     }
 
-                    // Continue bot moves dengan delay minimal
-                    if (this.engine.gameMode === 'bot-vs-bot' && !this.isPaused && !this.engine.isGameOver()) {
-                        const nextMoveDelay = Math.max(20, this.engine.botSpeed * 0.05);
+                    // Continue game flow
+                    if (this.engine.gameMode === 'bot-vs-bot' && !this.isPaused) {
+                        // Use actual bot speed with minimum delay
+                        const nextMoveDelay = Math.max(actualSpeed * 0.8, 100);
                         setTimeout(() => {
                             if (!this.isPaused && !this.botThinking && !this.engine.isGameOver()) {
                                 this.makeBotMove();
                             }
                         }, nextMoveDelay);
                     } else if (this.engine.gameMode === 'player-vs-bot' && this.engine.currentPlayer === 'black') {
-                        setTimeout(() => this.makeBotMove(), Math.min(this.engine.botSpeed * 0.4, 400));
+                        setTimeout(() => {
+                            if (!this.isPaused && !this.engine.isGameOver()) {
+                                this.makeBotMove();
+                            }
+                        }, Math.max(actualSpeed * 0.5, 200));
                     }
                 } else {
+                    console.error('Invalid bot move generated:', botMove);
                     this.botThinking = false;
-                    this.endGame();
+                    
+                    // Force game end if no valid moves
+                    const validMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
+                    if (validMoves.length === 0) {
+                        this.endGame();
+                    } else {
+                        // Retry with random move
+                        setTimeout(() => {
+                            if (!this.isPaused && !this.engine.isGameOver()) {
+                                this.makeBotMove();
+                            }
+                        }, 300);
+                    }
                 }
             } catch (error) {
-                console.error('Error in bot move:', error);
+                console.error('Critical error in bot move execution:', error);
+                clearTimeout(botMoveTimeout);
                 this.botThinking = false;
-                const availableMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
-                if (availableMoves.length === 0) {
-                    this.endGame();
-                } else {
-                    setTimeout(() => {
-                        if (!this.isPaused && !this.engine.isGameOver()) {
+                
+                // Emergency recovery
+                setTimeout(() => {
+                    if (!this.isPaused && !this.engine.isGameOver()) {
+                        const emergencyMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
+                        if (emergencyMoves.length === 0) {
+                            this.endGame();
+                        } else {
                             this.makeBotMove();
                         }
-                    }, 200);
-                }
+                    }
+                }, 500);
             }
         };
 
-        // Execute dengan timing yang dioptimalkan
-        if (window.requestIdleCallback) {
-            requestIdleCallback(executeBotMove, { timeout: thinkingTime });
-        } else {
-            setTimeout(executeBotMove, thinkingTime);
-        }
+        // Execute with proper timing
+        setTimeout(executeBotMove, thinkingTime);
     }
 
     formatMove(move) {
@@ -882,45 +967,37 @@ class ChessGame {
     }
 
     logMove(message, type = 'default') {
-        // Prevent duplicate messages
+        // Skip only exact duplicate consecutive messages
         const lastLogEntry = this.gameLog.lastElementChild;
-        if (lastLogEntry && lastLogEntry.textContent.includes(message.split(':')[1]?.trim())) {
-            return; // Skip if same message was just logged
+        if (lastLogEntry && lastLogEntry.innerHTML === this.formatLogMessage(message)) {
+            return; // Skip only if exact same formatted message
         }
 
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
+        logEntry.innerHTML = this.formatLogMessage(message);
 
-        // Different log colors based on game mode
-        if (message.includes('Game dimulai') || message.includes('Mode:')) {
-            logEntry.classList.add('game-start');
-        } else if (message.includes('GAME BERAKHIR')) {
-            logEntry.classList.add('game-end');
-        } else if (this.engine.gameMode === 'bot-vs-bot') {
-            // Bot vs Bot mode - distinct colors and names for each bot
-            if (message.includes('Putih:') || message.includes('Bot Putih')) {
-                logEntry.classList.add('bot1-move');
-            } else if (message.includes('Hitam:') || message.includes('Bot Hitam')) {
-                logEntry.classList.add('bot2-move');
-            }
-        } else {
-            // Player vs Bot mode - original colors
-            if (message.includes('Putih:')) {
-                logEntry.classList.add('white-move');
-            } else if (message.includes('Hitam:')) {
-                logEntry.classList.add('black-move');
-            }
-        }
+        // Add color classes based on message type
+        this.addLogColorClasses(logEntry, message);
 
-        if (message.includes('Pengaturan') || message.includes('dipause') || message.includes('dilanjutkan') || message.includes('dibatalkan')) {
-            logEntry.classList.add('system-message');
-        }
+        this.gameLog.appendChild(logEntry);
 
-        // Add timestamp and format message
+        // Auto scroll to bottom immediately for real-time feel
+        requestAnimationFrame(() => {
+            this.gameLog.scrollTop = this.gameLog.scrollHeight;
+        });
+
+        // Update log counter
+        this.updateLogCounter();
+    }
+
+    formatLogMessage(message) {
+        // Add timestamp
         const timestamp = new Date().toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit'
+            second: '2-digit',
+            fractionalSecondDigits: 1
         });
 
         // Enhanced message formatting with better bot names
@@ -953,20 +1030,129 @@ class ChessGame {
             formattedMessage = formattedMessage.replace('Hitam:', '<span class="player-indicator black">🤖 Bot-AI</span>:');
         }
 
-        logEntry.innerHTML = `
+        return `
             <span class="log-time">[${timestamp}]</span>
             <span class="log-message">${formattedMessage}</span>
         `;
+    }
 
-        this.gameLog.appendChild(logEntry);
+    addLogColorClasses(logEntry, message) {
+        // Different log colors based on game mode
+        if (message.includes('Game dimulai') || message.includes('Mode:')) {
+            logEntry.classList.add('game-start');
+        } else if (message.includes('GAME BERAKHIR')) {
+            logEntry.classList.add('game-end');
+        } else if (this.engine.gameMode === 'bot-vs-bot') {
+            // Bot vs Bot mode - distinct colors and names for each bot
+            if (message.includes('Putih:') || message.includes('Bot Putih')) {
+                logEntry.classList.add('bot1-move');
+            } else if (message.includes('Hitam:') || message.includes('Bot Hitam')) {
+                logEntry.classList.add('bot2-move');
+            }
+        } else {
+            // Player vs Bot mode - original colors
+            if (message.includes('Putih:')) {
+                logEntry.classList.add('white-move');
+            } else if (message.includes('Hitam:')) {
+                logEntry.classList.add('black-move');
+            }
+        }
 
-        // Auto scroll to bottom with smooth animation
+        if (message.includes('Pengaturan') || message.includes('dipause') || message.includes('dilanjutkan') || message.includes('dibatalkan')) {
+            logEntry.classList.add('system-message');
+        }
+    }
+
+    updateLogCounter() {
+        const logCounter = document.getElementById('logCounter');
+        if (logCounter) {
+            const totalLogs = this.gameLog.children.length;
+            logCounter.textContent = `${totalLogs} logs`;
+        }
+    }
+
+    downloadGameLog() {
+        const logs = [];
+        const logEntries = this.gameLog.children;
+        
+        // Create header with game info
+        const gameInfo = `
+=== GAME CATUR LOG ===
+Mode: ${this.engine.gameMode}
+Tanggal: ${new Date().toLocaleDateString('id-ID')}
+Waktu: ${new Date().toLocaleTimeString('id-ID')}
+${this.engine.gameMode === 'bot-vs-bot' ? 
+    `Alpha-Bot: ${this.engine.botWhiteDifficulty} vs Beta-Bot: ${this.engine.botBlackDifficulty}` : 
+    `Difficulty: ${this.engine.difficulty}`}
+Kecepatan: ${this.engine.botSpeed / 1000}s
+=====================
+        `.trim();
+        
+        logs.push(gameInfo);
+        logs.push('');
+
+        // Extract text content from each log entry
+        for (let i = 0; i < logEntries.length; i++) {
+            const entry = logEntries[i];
+            const timeText = entry.querySelector('.log-time')?.textContent || '';
+            const messageText = entry.querySelector('.log-message')?.textContent || '';
+            logs.push(`${timeText} ${messageText}`);
+        }
+
+        // Create downloadable file
+        const logContent = logs.join('\n');
+        const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        link.download = `chess-game-log-${timestamp}.txt`;
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        // Show success message
+        this.showToast('📥 Log berhasil didownload!', 'success');
+    }
+
+    clearGameLog() {
+        // Show confirmation dialog
+        if (confirm('🗑️ Hapus semua log permainan? Tindakan ini tidak dapat dibatalkan.')) {
+            this.gameLog.innerHTML = '';
+            this.updateLogCounter();
+            this.logMove('🧹 Log permainan telah dibersihkan');
+            this.showToast('🗑️ Log berhasil dihapus!', 'success');
+        }
+    }
+
+    showToast(message, type = 'info') {
+        // Remove existing toast
+        const existingToast = document.querySelector('.toast-message');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast-message toast-${type}`;
+        toast.textContent = message;
+
+        // Add to body
+        document.body.appendChild(toast);
+
+        // Auto remove after 3 seconds
         setTimeout(() => {
-            this.gameLog.scrollTo({
-                top: this.gameLog.scrollHeight,
-                behavior: 'smooth'
-            });
-        }, 50);
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
     }
 
     endGame(reason = 'checkmate') {
@@ -995,6 +1181,34 @@ class ChessGame {
                 loserColor = currentPlayer;
                 winner = currentPlayer === 'white' ? 'Hitam' : 'Putih';
                 this.logMove(`🏆 CHECKMATE! ${winner} menang! Raja ${currentPlayer === 'white' ? 'putih' : 'hitam'} telah skakmat! 🎉`);
+            } else if (gameEndResult === 'king_captured') {
+                // King captured/missing - immediate win (FIDE Rules)
+                // Determine winner based on which king is missing
+                const whiteKing = this.engine.findKing('white');
+                const blackKing = this.engine.findKing('black');
+                
+                if (!whiteKing) {
+                    // White king missing = Black wins
+                    winnerColor = 'black';
+                    loserColor = 'white';
+                    winner = 'Hitam';
+                    this.logMove(`👑 RAJA PUTIH HILANG/DITANGKAP! Hitam menang otomatis sesuai aturan FIDE! 🏆`);
+                } else if (!blackKing) {
+                    // Black king missing = White wins  
+                    winnerColor = 'white';
+                    loserColor = 'black';
+                    winner = 'Putih';
+                    this.logMove(`👑 RAJA HITAM HILANG/DITANGKAP! Putih menang otomatis sesuai aturan FIDE! 🏆`);
+                } else {
+                    // Fallback - should not happen but handle gracefully
+                    const currentPlayer = this.engine.currentPlayer;
+                    winnerColor = currentPlayer === 'white' ? 'black' : 'white';
+                    loserColor = currentPlayer;
+                    winner = currentPlayer === 'white' ? 'Hitam' : 'Putih';
+                    this.logMove(`👑 RAJA DITANGKAP! ${winner} menang otomatis! 🎉`);
+                }
+                
+                this.turnIndicator.textContent = `🏆 ${winner} MENANG - Raja Lawan Ditangkap!`;
             } else if (gameEndResult === 'stalemate') {
                 // Stalemate - draw
                 isDraw = true;
@@ -1124,51 +1338,123 @@ class ChessGame {
         content.className = 'play-again-content';
 
         let promptMessage = '';
+        let buttonsHtml = '';
+        
         if (this.engine.gameMode === 'bot-vs-bot') {
-            if (this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
+            const hasNextRound = this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds;
+            const currentScore = `Alpha ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta (Seri: ${this.tournamentSettings.drawCount})`;
+            
+            if (hasNextRound) {
+                // Ada round berikutnya
                 promptMessage = `
-                    <h2>🎮 Lanjut Round Berikutnya?</h2>
-                    <p>Round ${this.tournamentSettings.currentRound} selesai!</p>
-                    <p>Siap untuk Round ${this.tournamentSettings.currentRound + 1}?</p>
+                    <div class="round-continuation">
+                        <h2>🎯 Round ${this.tournamentSettings.currentRound} Selesai!</h2>
+                        <div class="current-score">
+                            <p class="score-display">📊 Skor Sementara: ${currentScore}</p>
+                        </div>
+                        <div class="next-round-info">
+                            <p>🔥 Siap untuk Round ${this.tournamentSettings.currentRound + 1}?</p>
+                            <small>Sisa ${this.tournamentSettings.totalRounds - this.tournamentSettings.currentRound} round lagi!</small>
+                        </div>
+                    </div>
+                `;
+                
+                buttonsHtml = `
+                    <div class="play-again-buttons tournament-continue">
+                        <button id="playAgainYes" class="btn-primary next-round-btn">🎮 Lanjut Round ${this.tournamentSettings.currentRound + 1}</button>
+                        <button id="viewRoundHistory" class="btn-secondary history-btn">📜 Lihat Riwayat Round</button>
+                        <button id="playAgainNo" class="btn-secondary menu-btn">🏠 Kembali ke Menu</button>
+                    </div>
                 `;
             } else {
+                // Tournament selesai
+                const whiteWins = this.tournamentSettings.roundWins.white;
+                const blackWins = this.tournamentSettings.roundWins.black;
+                const draws = this.tournamentSettings.drawCount;
+                
+                let championText = '';
+                if (whiteWins > blackWins) {
+                    championText = `🏆 Alpha-AI Juara Tournament! (${whiteWins} Kemenangan)`;
+                } else if (blackWins > whiteWins) {
+                    championText = `🏆 Beta-AI Juara Tournament! (${blackWins} Kemenangan)`;
+                } else {
+                    championText = '🤝 Tournament Berakhir Seri!';
+                }
+                
                 promptMessage = `
-                    <h2>🏆 Tournament Selesai!</h2>
-                    <p>Ingin memulai tournament baru?</p>
+                    <div class="tournament-complete">
+                        <h2>🎉 Tournament ${this.tournamentSettings.totalRounds} Round Selesai!</h2>
+                        <div class="final-results">
+                            <p class="champion-text">${championText}</p>
+                            <div class="final-score">
+                                <p>📊 Hasil Akhir: ${currentScore}</p>
+                                <small>Total ${whiteWins + blackWins + draws} round dimainkan</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                buttonsHtml = `
+                    <div class="play-again-buttons tournament-complete">
+                        <button id="playAgainYes" class="btn-primary new-tournament-btn">🆕 Tournament Baru</button>
+                        <button id="viewRoundHistory" class="btn-secondary history-btn">📜 Lihat Riwayat Lengkap</button>
+                        <button id="playAgainNo" class="btn-secondary menu-btn">🏠 Kembali ke Menu</button>
+                    </div>
                 `;
             }
         } else {
+            // Player vs Bot mode
             promptMessage = `
-                <h2>🎮 Permainan Selesai!</h2>
-                <p>Ingin bermain lagi?</p>
+                <div class="game-complete">
+                    <h2>🎮 Permainan Selesai!</h2>
+                    <p>Terima kasih sudah bermain!</p>
+                </div>
+            `;
+            
+            buttonsHtml = `
+                <div class="play-again-buttons single-game">
+                    <button id="playAgainYes" class="btn-primary">🔄 Main Lagi</button>
+                    <button id="playAgainNo" class="btn-secondary">🏠 Kembali ke Menu</button>
+                </div>
             `;
         }
 
         content.innerHTML = `
             ${promptMessage}
-            <div class="play-again-buttons">
-                <button id="playAgainYes" class="btn-primary">🎮 Ya, Lanjut!</button>
-                <button id="playAgainNo" class="btn-secondary">🏠 Kembali ke Menu</button>
-            </div>
+            ${buttonsHtml}
         `;
 
         overlay.appendChild(content);
         document.body.appendChild(overlay);
 
         // Add event listeners
-        document.getElementById('playAgainYes').addEventListener('click', () => {
-            overlay.remove();
-            if (this.engine.gameMode === 'bot-vs-bot' && this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
-                this.startNewRound();
-            } else {
-                this.newGame(); // Start new tournament/game
-            }
-        });
+        const playAgainYes = document.getElementById('playAgainYes');
+        const playAgainNo = document.getElementById('playAgainNo');
+        const viewHistoryBtn = document.getElementById('viewRoundHistory');
 
-        document.getElementById('playAgainNo').addEventListener('click', () => {
-            overlay.remove();
-            this.newGame(); // Back to welcome screen
-        });
+        if (playAgainYes) {
+            playAgainYes.addEventListener('click', () => {
+                overlay.remove();
+                if (this.engine.gameMode === 'bot-vs-bot' && this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
+                    this.startNewRound();
+                } else {
+                    this.newGame(); // Start new tournament/game
+                }
+            });
+        }
+
+        if (playAgainNo) {
+            playAgainNo.addEventListener('click', () => {
+                overlay.remove();
+                this.newGame(); // Back to welcome screen
+            });
+        }
+
+        if (viewHistoryBtn) {
+            viewHistoryBtn.addEventListener('click', () => {
+                this.showRoundHistoryModal();
+            });
+        }
     }
 
     showVictoryAnimation(winnerColor, winner, isDraw) {
@@ -1268,6 +1554,81 @@ class ChessGame {
             }
         `;
         document.head.appendChild(style);
+    }
+
+    showRoundHistoryModal() {
+        const existingModal = document.querySelector('.history-modal-overlay');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'history-modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'history-modal';
+
+        // Get history data
+        const historyList = document.getElementById('roundHistoryList');
+        const historyEntries = historyList ? historyList.children : [];
+        
+        let historyContent = '';
+        if (historyEntries.length > 0) {
+            historyContent = '<div class="history-entries">';
+            for (let i = 0; i < historyEntries.length; i++) {
+                historyContent += `<div class="modal-history-entry">${historyEntries[i].innerHTML}</div>`;
+            }
+            historyContent += '</div>';
+        } else {
+            historyContent = '<p class="no-history">📭 Belum ada riwayat round.</p>';
+        }
+
+        const currentScore = `Alpha ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta (Seri: ${this.tournamentSettings.drawCount})`;
+
+        modal.innerHTML = `
+            <div class="history-modal-header">
+                <h3>📜 Riwayat Round Tournament</h3>
+                <button class="history-close-btn">&times;</button>
+            </div>
+            <div class="history-modal-body">
+                <div class="current-tournament-status">
+                    <h4>🏆 Status Tournament Saat Ini</h4>
+                    <p class="current-round">Round: ${this.tournamentSettings.currentRound} / ${this.tournamentSettings.totalRounds}</p>
+                    <p class="current-score">Skor: ${currentScore}</p>
+                </div>
+                <div class="history-content">
+                    <h4>📋 Detail Riwayat Round</h4>
+                    ${historyContent}
+                </div>
+            </div>
+            <div class="history-modal-footer">
+                <button class="btn-secondary close-history-btn">✅ Tutup</button>
+            </div>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Add event listeners
+        const closeBtn = modal.querySelector('.history-close-btn');
+        const closeFooterBtn = modal.querySelector('.close-history-btn');
+
+        const closeModal = () => {
+            overlay.style.animation = 'fadeOut 0.3s ease forwards';
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        };
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeModal();
+            }
+        });
     }
 
     showTournamentVictoryAnimation(whiteWins, blackWins, draws, winnerName) {
@@ -1422,6 +1783,18 @@ class ChessGame {
         botSpeedSlider.addEventListener('input', (e) => {
             speedValue.textContent = `${e.target.value}s`;
         });
+
+        // Log controls
+        const downloadLogBtn = document.getElementById('downloadLogBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+
+        if (downloadLogBtn) {
+            downloadLogBtn.addEventListener('click', () => this.downloadGameLog());
+        }
+
+        if (clearLogBtn) {
+            clearLogBtn.addEventListener('click', () => this.clearGameLog());
+        }
     }
 
     updateSettingsModal() {
@@ -1704,18 +2077,26 @@ class ChessGame {
             const loserColor = winner.includes('Alpha') ? 'black' : 'white';
             const winnerColor = winner.includes('Alpha') ? 'white' : 'black';
             
-            // Analisis penyebab kekalahan berdasarkan kondisi game
-            if (this.engine.isInCheck(loserColor)) {
-                gameEndReason = '👑 Checkmate - Raja terkepung';
-            } else if (this.engine.getAllValidMoves(loserColor).length === 0) {
-                gameEndReason = '🚫 Stalemate - Tidak ada gerakan valid';
-            } else if (whiteValue > blackValue * 2 || blackValue > whiteValue * 2) {
-                gameEndReason = '💀 Dominasi Material - Terlalu banyak bidak hilang';
+            // Analisis penyebab berdasarkan game end result
+            const gameEndResult = this.engine.checkGameEnd();
+            
+            if (gameEndResult === 'king_captured') {
+                gameEndReason = '👑 Raja Ditangkap - Kemenangan Langsung';
+            } else if (gameEndResult === 'checkmate') {
+                gameEndReason = '♔ Checkmate - Raja Terkepung Tanpa Jalan Keluar';
+            } else if (this.engine.getAllValidMoves(loserColor).length === 0 && this.engine.isInCheck(loserColor)) {
+                gameEndReason = '⚔️ Checkmate - Tidak Ada Langkah Valid';
+            } else if (whiteValue > blackValue + 10) {
+                gameEndReason = '💀 Dominasi Material Putih - Keunggulan Bidak';
+            } else if (blackValue > whiteValue + 10) {
+                gameEndReason = '💀 Dominasi Material Hitam - Keunggulan Bidak';
+            } else if (this.engine.gameHistory.length > 50) {
+                gameEndReason = '🧠 Strategi Jangka Panjang - Permainan Bertahan Lama';
             } else {
-                gameEndReason = '⚔️ Strategi Superior';
+                gameEndReason = '⚡ Taktik Cepat - Kemenangan Strategis';
             }
         } else {
-            gameEndReason = '🤝 Permainan Seimbang';
+            gameEndReason = '🤝 Permainan Seimbang - Hasil Seri';
         }
 
         const roundEntry = document.createElement('div');
@@ -1880,21 +2261,18 @@ class ChessGame {
             this.tournamentSettings.drawCount++;
         }
 
-        this.logMove(`🏁 Round ${this.tournamentSettings.currentRound} dari ${this.tournamentSettings.totalRounds} selesai!`);
-        this.logMove(`📊 Skor Tournament: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
-
-        // Check if tournament is complete
-        if (this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds) {
+        // Only show round completion message if there are more rounds to play
+        if (this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
+            this.logMove(`🎯 Round ${this.tournamentSettings.currentRound} dari ${this.tournamentSettings.totalRounds} selesai!`);
+            this.logMove(`📊 Skor Tournament: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
+            this.logMove(`🔥 Siap untuk Round ${this.tournamentSettings.currentRound + 1}?`);
+        } else {
+            // Tournament complete - show final message
             this.logMove(`🎯 TOURNAMENT SELESAI SETELAH ${this.tournamentSettings.totalRounds} ROUND!`);
+            this.logMove(`📊 Hasil Akhir: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
             setTimeout(() => {
                 this.endTournament();
             }, 2000);
-        } else {
-            // Show start new round button for continuation
-            const startNewRoundBtn = document.getElementById('startNewRoundBtn');
-            if (startNewRoundBtn) {
-                startNewRoundBtn.style.display = 'block';
-            }
         }
 
         this.updateTournamentDisplay();
@@ -1988,6 +2366,23 @@ function toggleGuide(header) {
         content.classList.add('collapsed');
         header.classList.remove('expanded');
         toggle.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Function to toggle speed guide spoiler
+function toggleSpeedGuide(header) {
+    const container = header.parentElement;
+    const content = container.querySelector('.speed-cards-grid');
+    const toggle = header.querySelector('.speed-guide-toggle');
+    
+    if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'grid';
+        header.classList.add('expanded');
+        if (toggle) toggle.style.transform = 'rotate(180deg)';
+    } else {
+        content.style.display = 'none';
+        header.classList.remove('expanded');
+        if (toggle) toggle.style.transform = 'rotate(0deg)';
     }
 }
 
