@@ -119,9 +119,50 @@ class ChessEngine {
         if (!piece) return false;
 
         const targetPiece = this.board[toRow][toCol];
+        
+        // Tidak boleh makan bidak sendiri
         if (targetPiece && targetPiece.color === piece.color) return false;
-
-        return this.isValidPieceMove(piece, fromRow, fromCol, toRow, toCol);
+        
+        // Raja TIDAK BOLEH makan raja lawan (jarak minimal 1 kotak)
+        if (piece.type === 'king' && targetPiece && targetPiece.type === 'king') {
+            return false;
+        }
+        
+        // Raja tidak boleh bergerak ke kotak yang dikuasai lawan
+        if (piece.type === 'king') {
+            // Simulasi gerakan untuk cek apakah kotak tujuan dikuasai lawan
+            const originalTarget = this.board[toRow][toCol];
+            this.board[toRow][toCol] = piece;
+            this.board[fromRow][fromCol] = null;
+            
+            // Cek apakah raja akan ter-skak di posisi baru
+            const wouldBeInCheck = this.isInCheck(piece.color);
+            
+            // Kembalikan posisi
+            this.board[fromRow][fromCol] = piece;
+            this.board[toRow][toCol] = originalTarget;
+            
+            if (wouldBeInCheck) return false;
+        }
+        
+        // Validasi gerakan dasar bidak
+        if (!this.isValidPieceMove(piece, fromRow, fromCol, toRow, toCol)) {
+            return false;
+        }
+        
+        // Simulasi gerakan untuk cek apakah raja sendiri akan ter-skak (untuk semua bidak)
+        const originalTarget = this.board[toRow][toCol];
+        this.board[toRow][toCol] = piece;
+        this.board[fromRow][fromCol] = null;
+        
+        const isKingInCheck = this.isInCheck(piece.color);
+        
+        // Kembalikan posisi
+        this.board[fromRow][fromCol] = piece;
+        this.board[toRow][toCol] = originalTarget;
+        
+        // Gerakan tidak valid jika membuat raja sendiri ter-skak
+        return !isKingInCheck;
     }
 
     isValidPieceMove(piece, fromRow, fromCol, toRow, toCol) {
@@ -576,10 +617,28 @@ class ChessEngine {
         const opponentMoves = this.getAllValidMoves(this.currentPlayer);
         let bestOpponentScore = this.currentPlayer === 'white' ? -Infinity : Infinity;
 
-        // Optimasi: Kurangi jumlah moves yang dievaluasi untuk performa
-        const moveLimit = Math.min(3, opponentMoves.length);
-        for (let i = 0; i < moveLimit; i++) {
-            const score = this.evaluateMoveDeep(opponentMoves[i], depth - 1);
+        // Maksimal optimasi: Kurangi evaluasi berdasarkan depth dan prioritas moves
+        let moveLimit;
+        if (depth >= 3) {
+            moveLimit = Math.min(2, opponentMoves.length); // Sangat terbatas untuk depth tinggi
+        } else if (depth === 2) {
+            moveLimit = Math.min(4, opponentMoves.length); // Terbatas untuk depth sedang
+        } else {
+            moveLimit = Math.min(6, opponentMoves.length); // Lebih banyak untuk depth rendah
+        }
+
+        // Prioritaskan moves yang penting (capture, check, dll)
+        const priorityMoves = opponentMoves.filter(m => 
+            this.board[m.to.row][m.to.col] !== null || // Capture moves
+            this.wouldCauseCheck(m) // Moves that cause check
+        );
+        
+        const movesToEvaluate = priorityMoves.length > 0 ? 
+            priorityMoves.slice(0, moveLimit) : 
+            opponentMoves.slice(0, moveLimit);
+
+        for (const oppMove of movesToEvaluate) {
+            const score = this.evaluateMoveDeep(oppMove, depth - 1);
 
             if (this.currentPlayer === 'white') {
                 bestOpponentScore = Math.max(bestOpponentScore, score);
@@ -596,24 +655,262 @@ class ChessEngine {
         return bestOpponentScore;
     }
 
-    // Check if the game is over (checkmate or stalemate)
+    // Helper function untuk check if move would cause check
+    wouldCauseCheck(move) {
+        const originalPiece = this.board[move.to.row][move.to.col];
+        const movingPiece = this.board[move.from.row][move.from.col];
+
+        this.board[move.to.row][move.to.col] = movingPiece;
+        this.board[move.from.row][move.from.col] = null;
+
+        const opponentColor = movingPiece.color === 'white' ? 'black' : 'white';
+        const wouldCheck = this.isInCheck(opponentColor);
+
+        // Restore
+        this.board[move.from.row][move.from.col] = movingPiece;
+        this.board[move.to.row][move.to.col] = originalPiece;
+
+        return wouldCheck;
+    }
+
+    // Check if the game is over (checkmate or stalemate) - International Chess Standards
     checkGameEnd() {
         const currentPlayer = this.currentPlayer;
-        const moves = this.getAllValidMoves(currentPlayer);
+        const validMoves = this.getAllValidMoves(currentPlayer);
 
-        if (moves.length === 0) {
+        // No valid moves available for current player
+        if (validMoves.length === 0) {
             if (this.isInCheck(currentPlayer)) {
+                // King is in check and no valid moves = CHECKMATE
                 this.gameStatus = currentPlayer === 'white' ? 'black_wins' : 'white_wins';
-                console.log(`Checkmate detected: ${currentPlayer} has no moves and is in check`);
+                console.log(`CHECKMATE: ${currentPlayer} king is in check with no valid moves`);
                 return 'checkmate';
             } else {
+                // King is not in check but no valid moves = STALEMATE (DRAW)
                 this.gameStatus = 'draw';
-                console.log(`Stalemate detected: ${currentPlayer} has no moves but not in check`);
+                console.log(`STALEMATE: ${currentPlayer} has no valid moves but king is not in check`);
                 return 'stalemate';
             }
         }
 
+        // Check for insufficient material (automatic draw)
+        if (this.isInsufficientMaterial()) {
+            this.gameStatus = 'draw';
+            console.log(`DRAW: Insufficient material to checkmate`);
+            return 'draw_insufficient_material';
+        }
+
+        // Check for threefold repetition
+        if (this.isThreefoldRepetition()) {
+            this.gameStatus = 'draw';
+            console.log(`DRAW: Threefold repetition`);
+            return 'draw_repetition';
+        }
+
+        // Check for 50-move rule
+        if (this.isFiftyMoveRule()) {
+            this.gameStatus = 'draw';
+            console.log(`DRAW: 50-move rule (no pawn move or capture)`);
+            return 'draw_fifty_moves';
+        }
+
         return null;
+    }
+
+    // Check for insufficient material to achieve checkmate
+    isInsufficientMaterial() {
+        const pieces = { white: [], black: [] };
+        
+        // Collect all pieces on board
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row][col];
+                if (piece) {
+                    pieces[piece.color].push(piece.type);
+                }
+            }
+        }
+
+        // Remove kings from count
+        pieces.white = pieces.white.filter(p => p !== 'king');
+        pieces.black = pieces.black.filter(p => p !== 'king');
+
+        // King vs King
+        if (pieces.white.length === 0 && pieces.black.length === 0) {
+            return true;
+        }
+
+        // King and Bishop vs King
+        if ((pieces.white.length === 1 && pieces.white[0] === 'bishop' && pieces.black.length === 0) ||
+            (pieces.black.length === 1 && pieces.black[0] === 'bishop' && pieces.white.length === 0)) {
+            return true;
+        }
+
+        // King and Knight vs King
+        if ((pieces.white.length === 1 && pieces.white[0] === 'knight' && pieces.black.length === 0) ||
+            (pieces.black.length === 1 && pieces.black[0] === 'knight' && pieces.white.length === 0)) {
+            return true;
+        }
+
+        // King and Bishop vs King and Bishop (same color squares)
+        if (pieces.white.length === 1 && pieces.black.length === 1 &&
+            pieces.white[0] === 'bishop' && pieces.black[0] === 'bishop') {
+            // Check if bishops are on same color squares
+            const whiteBishopPos = this.findPiecePosition('white', 'bishop');
+            const blackBishopPos = this.findPiecePosition('black', 'bishop');
+            if (whiteBishopPos && blackBishopPos) {
+                const whiteSquareColor = (whiteBishopPos.row + whiteBishopPos.col) % 2;
+                const blackSquareColor = (blackBishopPos.row + blackBishopPos.col) % 2;
+                if (whiteSquareColor === blackSquareColor) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // Helper to find piece position
+    findPiecePosition(color, type) {
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row][col];
+                if (piece && piece.color === color && piece.type === type) {
+                    return { row, col };
+                }
+            }
+        }
+        return null;
+    }
+
+    // Check for threefold repetition
+    isThreefoldRepetition() {
+        if (this.gameHistory.length < 8) return false; // Need at least 8 moves for repetition
+        
+        const currentPosition = this.getBoardHash();
+        let repetitions = 1;
+        
+        // Check previous positions
+        for (let i = this.gameHistory.length - 4; i >= 0; i -= 2) {
+            // Save current state
+            const currentState = this.saveGameState();
+            
+            // Undo moves to get to previous position
+            for (let j = this.gameHistory.length - 1; j >= i; j--) {
+                this.undoMove();
+            }
+            
+            // Check if position matches
+            if (this.getBoardHash() === currentPosition) {
+                repetitions++;
+            }
+            
+            // Restore current state
+            this.restoreGameState(currentState);
+            
+            if (repetitions >= 3) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    // Check for 50-move rule
+    isFiftyMoveRule() {
+        if (this.gameHistory.length < 100) return false; // Need 50 moves by each player
+        
+        // Check last 100 half-moves (50 full moves)
+        for (let i = this.gameHistory.length - 100; i < this.gameHistory.length; i++) {
+            const move = this.gameHistory[i];
+            if (move.piece.type === 'pawn' || move.captured) {
+                return false; // Pawn move or capture resets the counter
+            }
+        }
+        
+        return true;
+    }
+
+    // Generate board hash for position comparison
+    getBoardHash() {
+        let hash = '';
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = this.board[row][col];
+                if (piece) {
+                    hash += `${piece.color[0]}${piece.type[0]}`;
+                } else {
+                    hash += '--';
+                }
+            }
+        }
+        hash += this.currentPlayer[0]; // Include current player
+        return hash;
+    }
+
+    // Save current game state
+    saveGameState() {
+        return {
+            board: this.board.map(row => row.slice()),
+            currentPlayer: this.currentPlayer,
+            gameHistory: [...this.gameHistory]
+        };
+    }
+
+    // Restore game state
+    restoreGameState(state) {
+        this.board = state.board.map(row => row.slice());
+        this.currentPlayer = state.currentPlayer;
+        this.gameHistory = [...state.gameHistory];
+    }
+
+    // Helper function to check if king is surrounded
+    isKingSurrounded(kingPos, color) {
+        const directions = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],           [0, 1],
+            [1, -1],  [1, 0],  [1, 1]
+        ];
+
+        let blockedSquares = 0;
+        let totalSquares = 0;
+
+        for (const [dr, dc] of directions) {
+            const newRow = kingPos.row + dr;
+            const newCol = kingPos.col + dc;
+
+            // Skip jika di luar board
+            if (newRow < 0 || newRow > 7 || newCol < 0 || newCol > 7) {
+                blockedSquares++;
+                totalSquares++;
+                continue;
+            }
+
+            totalSquares++;
+
+            // Cek apakah square dikuasai lawan atau ada bidak sendiri
+            const piece = this.board[newRow][newCol];
+            if (piece && piece.color === color) {
+                blockedSquares++;
+                continue;
+            }
+
+            // Simulasi gerakan raja ke square ini
+            const originalPiece = this.board[newRow][newCol];
+            this.board[newRow][newCol] = { type: 'king', color: color };
+            this.board[kingPos.row][kingPos.col] = null;
+
+            // Cek apakah akan ter-skak
+            if (this.isInCheck(color)) {
+                blockedSquares++;
+            }
+
+            // Kembalikan posisi
+            this.board[kingPos.row][kingPos.col] = { type: 'king', color: color };
+            this.board[newRow][newCol] = originalPiece;
+        }
+
+        return blockedSquares === totalSquares;
     }
 
     // Check if the game is over

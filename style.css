@@ -336,6 +336,7 @@ body {
     border-radius: 10px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     background: #8B4513;
+    position: relative;
 }
 
 .square {
@@ -344,18 +345,36 @@ body {
     justify-content: center;
     font-size: clamp(2rem, 6vw, 3rem);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: box-shadow 0.15s ease;
     position: relative;
-    will-change: background-color;
     contain: layout style;
+    min-height: 0;
+    min-width: 0;
 }
 
+/* Konsisten warna kotak - TIDAK BERUBAH */
 .square.light {
-    background-color: #F5DEB3;
+    background-color: #F5DEB3 !important;
 }
 
 .square.dark {
-    background-color: #8B4513;
+    background-color: #8B4513 !important;
+}
+
+/* Override hanya untuk highlight states */
+.square.selected {
+    box-shadow: inset 0 0 0 4px #B8860B !important;
+    background-color: #DAA520 !important;
+}
+
+.square.valid-move {
+    box-shadow: inset 0 0 0 3px #90EE90 !important;
+    background-color: #90EE90 !important;
+}
+
+.square.last-move {
+    box-shadow: inset 0 0 0 3px #FFD700 !important;
+    background-color: #FFD700 !important;
 }
 
 .square:hover {
@@ -1109,7 +1128,7 @@ body {
 .bots-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 15px;
     margin: 15px 0;
 }
 
@@ -1119,6 +1138,7 @@ body {
     border-radius: 12px;
     padding: 15px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 .bot-setting-card h4 {
@@ -1128,6 +1148,21 @@ body {
     text-align: center;
     border-bottom: 1px solid #8B4513;
     padding-bottom: 8px;
+}
+
+/* Single difficulty guide at bottom */
+.single-difficulty-guide {
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    border: 2px solid #8B4513;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Hide individual guides in bot cards */
+.bot-setting-card .difficulty-guide-mini {
+    display: none;
 }
 
 .difficulty-guide-mini {
@@ -1301,19 +1336,38 @@ body {
 @media (max-width: 768px) {
     .bots-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: 12px;
     }
 
     .bot-setting-card {
         padding: 12px;
     }
 
-    .difficulty-guide-mini {
-        padding: 10px;
+    .bot-setting-card h4 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+    }
+
+    .setting-row {
+        margin-bottom: 12px;
+    }
+
+    .setting-row label {
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+
+    .difficulty-select {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
+    .single-difficulty-guide {
+        margin-top: 15px;
     }
 
     .guide-content {
-        max-height: 300px;
+        max-height: 250px;
         padding: 0 10px;
     }
 
@@ -1330,6 +1384,31 @@ body {
     .level-details {
         font-size: 0.7rem;
         line-height: 1.3;
+    }
+}
+
+@media (max-width: 480px) {
+    .bot-vs-bot-settings {
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    .bots-grid {
+        gap: 10px;
+    }
+
+    .bot-setting-card {
+        padding: 10px;
+    }
+
+    .bot-setting-card h4 {
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+
+    .difficulty-select {
+        font-size: 0.85rem;
+        padding: 6px 10px;
     }
 }
 
@@ -1357,6 +1436,66 @@ body {
     min-width: 120px;
 }
 
+/* Round History Improvements */
+.round-history-entry {
+    background: rgba(245, 222, 179, 0.1);
+    border-left: 3px solid #DAA520;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.round-history-entry:hover {
+    background: rgba(245, 222, 179, 0.2);
+    transform: translateX(5px);
+}
+
+.round-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.round-reason {
+    margin: 5px 0;
+}
+
+.game-end-reason {
+    color: #B8860B;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.round-winner {
+    color: #FFD700;
+    font-weight: bold;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+.round-draw {
+    color: #87CEEB;
+    font-weight: bold;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 5px #FFD700; }
+    to { text-shadow: 0 0 15px #FFD700, 0 0 20px #FFD700; }
+}
+
+/* Speed Slider Animation Enhancement */
+#gameSpeedValue {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    min-width: 40px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 .difficulty-select,
 .speed-select {
     background: rgba(255, 255, 255, 0.95);
@@ -1371,6 +1510,90 @@ body {
     max-width: 220px;
     font-weight: 600;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.speed-control-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    max-width: 220px;
+}
+
+.speed-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #32CD32 0%, #FFD700 50%, #FF6347 100%);
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.speed-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #DAA520, #B8860B);
+    cursor: pointer;
+    border: 2px solid #FFF;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.speed-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.speed-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.speed-value {
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+    color: white;
+    border: 2px solid #DAA520;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    min-width: 80px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.speed-value:hover {
+    background: linear-gradient(135deg, #A0522D, #8B4513);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.speed-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.8rem;
+    color: #F5DEB3;
+    margin-top: 5px;
+    font-weight: 600;
+}
+
+.speed-label-min {
+    color: #32CD32;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.speed-label-max {
+    color: #FF6347;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .difficulty-select:hover,

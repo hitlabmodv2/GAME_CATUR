@@ -69,32 +69,65 @@ class ChessGame {
         const speedValue = document.getElementById('gameSpeedValue');
         
         if (speedSlider && speedValue) {
-            speedSlider.min = '0.1';
+            speedSlider.min = '0.5';
             speedSlider.max = '3';
             speedSlider.step = '0.1';
-            speedSlider.value = '1'; // Set default to 1 second
+            speedSlider.value = '1.5'; // Set default to normal speed (1.5 seconds)
             
-            // Add smooth update for speed display
+            // Add smooth update for speed display with accurate timing
             speedSlider.addEventListener('input', (e) => {
                 const value = parseFloat(e.target.value);
-                speedValue.textContent = `${value.toFixed(1)}s`;
+                const displayValue = value.toFixed(1);
                 
-                // Add visual feedback for speed range
-                const percentage = ((value - 0.1) / (3 - 0.1)) * 100;
-                if (percentage <= 33) {
-                    speedValue.style.background = 'linear-gradient(135deg, #32CD32, #228B22)';
-                    speedValue.style.color = '#FFF';
-                } else if (percentage <= 66) {
-                    speedValue.style.background = 'linear-gradient(135deg, #FFD700, #DAA520)';
-                    speedValue.style.color = '#000';
-                } else {
-                    speedValue.style.background = 'linear-gradient(135deg, #FF6347, #DC143C)';
-                    speedValue.style.color = '#FFF';
+                // Update engine speed immediately for real-time feedback
+                if (this.engine) {
+                    this.engine.botSpeed = value * 1000;
                 }
+                
+                // Add smooth animated transition for speed changes
+                speedValue.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                speedValue.style.transform = 'scale(1.05)';
+                
+                setTimeout(() => {
+                    speedValue.style.transform = 'scale(1)';
+                }, 150);
+                
+                // Add visual feedback for speed range dengan styling yang konsisten
+                const percentage = ((value - 0.5) / (3 - 0.5)) * 100;
+                let speedText = '';
+                let speedClass = '';
+                
+                if (value <= 1.0) { // Fast speed (0.5-1.0s)
+                    speedValue.style.background = 'linear-gradient(135deg, #32CD32, #228B22)';
+                    speedValue.style.borderColor = '#32CD32';
+                    speedValue.style.color = '#FFF';
+                    speedText = `⚡ ${displayValue}s`;
+                    speedValue.title = 'Kecepatan Cepat';
+                } else if (value <= 2.0) { // Normal speed (1.0-2.0s)
+                    speedValue.style.background = 'linear-gradient(135deg, #FFD700, #DAA520)';
+                    speedValue.style.borderColor = '#FFD700';
+                    speedValue.style.color = '#000';
+                    speedText = `⚡ ${displayValue}s`;
+                    speedValue.title = 'Kecepatan Normal';
+                } else { // Slow speed (2.0-3.0s)
+                    speedValue.style.background = 'linear-gradient(135deg, #FF6347, #DC143C)';
+                    speedValue.style.borderColor = '#FF6347';
+                    speedValue.style.color = '#FFF';
+                    speedText = `🐌 ${displayValue}s`;
+                    speedValue.title = 'Kecepatan Lambat';
+                }
+                
+                speedValue.textContent = speedText;
             });
             
-            // Initialize display
-            speedValue.textContent = '1.0s';
+            // Initialize display with proper styling untuk normal speed
+            const initialValue = parseFloat(speedSlider.value);
+            speedValue.textContent = `⚡ ${initialValue.toFixed(1)}s`;
+            speedValue.style.background = 'linear-gradient(135deg, #FFD700, #DAA520)';
+            speedValue.style.borderColor = '#FFD700';
+            speedValue.style.color = '#000';
+            speedValue.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            speedValue.title = 'Kecepatan Normal';
         }
 
         // Handle mode selection
@@ -213,7 +246,7 @@ class ChessGame {
             // Set defaults dengan level yang berbeda untuk balancing
             document.getElementById('botWhiteDifficulty').value = 'medium';
             document.getElementById('botBlackDifficulty').value = 'hard'; // Default berbeda
-            document.getElementById('gameSpeed').value = '1';
+            document.getElementById('gameSpeed').value = '1.5'; // Default normal speed
         }
 
         const savedPlayerSettings = localStorage.getItem('chessPlayerSettings');
@@ -252,7 +285,7 @@ class ChessGame {
     resetToDefaultSettings() {
         document.getElementById('botWhiteDifficulty').value = 'medium';
         document.getElementById('botBlackDifficulty').value = 'medium';
-        document.getElementById('gameSpeed').value = '1';
+        document.getElementById('gameSpeed').value = '1.5';
         document.getElementById('totalRounds').value = '3';
 
         // Clear saved settings
@@ -624,11 +657,6 @@ class ChessGame {
             currentPlayerName = this.engine.currentPlayer === 'white' ? 'Bot Putih' : 'Bot Hitam';
         }
 
-        // Optimasi: Update UI lebih efisien
-        if (!this.isUIBusy) {
-            this.turnIndicator.textContent = `${currentPlayerName} sedang berpikir...`;
-        }
-
         // Get difficulty for current bot
         let currentDifficulty = this.engine.difficulty;
         if (this.engine.gameMode === 'bot-vs-bot') {
@@ -636,15 +664,15 @@ class ChessGame {
                 this.engine.botWhiteDifficulty : this.engine.botBlackDifficulty;
         }
 
-        // Optimasi thinking time untuk mengurangi lag
-        let thinkingTime = Math.max(50, this.engine.botSpeed * 0.2);
+        // Maksimal optimasi thinking time untuk anti-lag
+        let thinkingTime = Math.max(100, this.engine.botSpeed * 0.3);
 
-        // Lebih agresif dalam mengurangi delay untuk bot vs bot
+        // Super optimasi untuk bot vs bot - kurangi delay drastis
         if (this.engine.gameMode === 'bot-vs-bot') {
-            thinkingTime = Math.max(30, this.engine.botSpeed * 0.15);
+            thinkingTime = Math.max(50, this.engine.botSpeed * 0.2);
         }
 
-        // Gunakan requestAnimationFrame untuk performa yang lebih baik
+        // Gunakan requestIdleCallback jika tersedia untuk performa maksimal
         const executeBotMove = () => {
             try {
                 const botMove = this.engine.getBotMove(currentDifficulty);
@@ -655,48 +683,51 @@ class ChessGame {
                         botMove.to.row, botMove.to.col
                     );
 
-                    // Track captures dengan throttling
+                    // Track captures tanpa throttling untuk akurasi
                     if (move.captured) {
                         this.trackCapture(move);
                     }
 
-                    // Batch UI updates untuk performa
-                    this.batchUIUpdate(() => {
+                    // Update UI dengan batch yang lebih efisien
+                    requestAnimationFrame(() => {
                         this.updateBoard();
                         this.updateGameInfo();
-                        this.logMove(this.formatMove(move));
+                        
+                        // Log move hanya jika diperlukan (throttle logging)
+                        if (this.engine.gameHistory.length % 3 === 0 || move.captured || this.engine.isInCheck(this.engine.currentPlayer)) {
+                            this.logMove(this.formatMove(move));
+                        }
+                        
                         this.updateInlineStats();
                     });
 
-                    // Simplified animation
+                    // Animasi yang lebih ringan
                     const targetSquare = this.getSquareElement(botMove.to.row, botMove.to.col);
-                    if (targetSquare) {
+                    if (targetSquare && this.engine.gameMode !== 'bot-vs-bot') {
                         targetSquare.classList.add('piece-moving');
-                        setTimeout(() => targetSquare.classList.remove('piece-moving'), 150);
+                        setTimeout(() => targetSquare.classList.remove('piece-moving'), 100);
                     }
 
                     this.botThinking = false;
 
-                    // Optimasi: Check game over dengan debouncing
-                    requestAnimationFrame(() => {
-                        const nextPlayerMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
-                        if (nextPlayerMoves.length === 0) {
-                            this.endGame();
-                            return;
-                        }
+                    // Super optimasi: Check game over tanpa debouncing
+                    const nextPlayerMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
+                    if (nextPlayerMoves.length === 0) {
+                        this.endGame();
+                        return;
+                    }
 
-                        // Continue bot moves dengan optimasi
-                        if (this.engine.gameMode === 'bot-vs-bot' && !this.isPaused && !this.engine.isGameOver()) {
-                            const nextMoveDelay = Math.max(30, this.engine.botSpeed * 0.1);
-                            setTimeout(() => {
-                                if (!this.isPaused && !this.botThinking && !this.engine.isGameOver()) {
-                                    this.makeBotMove();
-                                }
-                            }, nextMoveDelay);
-                        } else if (this.engine.gameMode === 'player-vs-bot' && this.engine.currentPlayer === 'black') {
-                            setTimeout(() => this.makeBotMove(), Math.min(this.engine.botSpeed * 0.3, 300));
-                        }
-                    });
+                    // Continue bot moves dengan delay minimal
+                    if (this.engine.gameMode === 'bot-vs-bot' && !this.isPaused && !this.engine.isGameOver()) {
+                        const nextMoveDelay = Math.max(20, this.engine.botSpeed * 0.05);
+                        setTimeout(() => {
+                            if (!this.isPaused && !this.botThinking && !this.engine.isGameOver()) {
+                                this.makeBotMove();
+                            }
+                        }, nextMoveDelay);
+                    } else if (this.engine.gameMode === 'player-vs-bot' && this.engine.currentPlayer === 'black') {
+                        setTimeout(() => this.makeBotMove(), Math.min(this.engine.botSpeed * 0.4, 400));
+                    }
                 } else {
                     this.botThinking = false;
                     this.endGame();
@@ -712,13 +743,17 @@ class ChessGame {
                         if (!this.isPaused && !this.engine.isGameOver()) {
                             this.makeBotMove();
                         }
-                    }, 500);
+                    }, 200);
                 }
             }
         };
 
-        // Execute with optimized timing
-        setTimeout(executeBotMove, thinkingTime);
+        // Execute dengan timing yang dioptimalkan
+        if (window.requestIdleCallback) {
+            requestIdleCallback(executeBotMove, { timeout: thinkingTime });
+        } else {
+            setTimeout(executeBotMove, thinkingTime);
+        }
     }
 
     formatMove(move) {
@@ -942,6 +977,7 @@ class ChessGame {
         let winnerColor = '';
         let loserColor = '';
         let isDraw = false;
+        let drawReason = '';
 
         if (reason === 'timeout') {
             winnerColor = this.timers.white <= 0 ? 'black' : 'white';
@@ -949,71 +985,73 @@ class ChessGame {
             winner = this.timers.white <= 0 ? 'Hitam' : 'Putih';
             this.logMove(`🏁 GAME BERAKHIR! ${winner} menang karena waktu habis! ⏰`);
         } else {
-            // Check for checkmate/stalemate properly
-            const currentPlayer = this.engine.currentPlayer;
-            const isInCheck = this.engine.isInCheck(currentPlayer);
-            const validMoves = this.engine.getAllValidMoves(currentPlayer);
-
-            // More aggressive win condition - reduce draws
-            if (validMoves.length === 0) {
-                if (isInCheck) {
-                    // Checkmate - opponent wins
-                    winnerColor = currentPlayer === 'white' ? 'black' : 'white';
-                    loserColor = currentPlayer;
-                    winner = currentPlayer === 'white' ? 'Hitam' : 'Putih';
-                    this.logMove(`🏆 CHECKMATE! ${winner} menang! 🎉`);
-                } else {
-                    // Force a winner instead of stalemate for better gameplay
-                    // Check material advantage to determine winner
-                    const whiteValue = this.calculateMaterialValue('white');
-                    const blackValue = this.calculateMaterialValue('black');
-
-                    if (whiteValue > blackValue) {
-                        winnerColor = 'white';
-                        loserColor = 'black';
-                        winner = 'Putih';
-                        this.logMove(`🏆 GAME BERAKHIR! ${winner} menang dengan material lebih unggul! 🎉`);
-                    } else if (blackValue > whiteValue) {
-                        winnerColor = 'black';
-                        loserColor = 'white';
-                        winner = 'Hitam';
-                        this.logMove(`🏆 GAME BERAKHIR! ${winner} menang dengan material lebih unggul! 🎉`);
-                    } else {
-                        // Only true draw if material is equal
-                        isDraw = true;
-                        this.logMove(`🤝 GAME BERAKHIR! Seri (Material Seimbang)! 🤝`);
-                        this.turnIndicator.textContent = `Game Berakhir - Seri!`;
-
-                        // Add round to history
-                        this.addRoundToHistory(
-                            this.tournamentSettings.currentRound,
-                            this.gameStats.white.captured,
-                            this.gameStats.black.captured,
-                            this.gameStats.white.totalValue,
-                            this.gameStats.black.totalValue,
-                            null // No winner for draw
-                        );
-
-                        // Show draw animation with play again option
-                        this.showVictoryAnimation(null, null, true);
-
-                        // Update tournament and show play again option
-                        if (this.engine.gameMode === 'bot-vs-bot') {
-                            this.updateTournamentAfterGame('draw', 'draw');
-                            setTimeout(() => {
-                                this.showPlayAgainPrompt();
-                            }, 4000);
-                        } else {
-                            setTimeout(() => {
-                                this.showPlayAgainPrompt();
-                            }, 3000);
-                        }
-                        return;
-                    }
-                }
+            // Check for checkmate/stalemate/draw properly according to international standards
+            const gameEndResult = this.engine.checkGameEnd();
+            
+            if (gameEndResult === 'checkmate') {
+                // Checkmate - opponent wins
+                const currentPlayer = this.engine.currentPlayer;
+                winnerColor = currentPlayer === 'white' ? 'black' : 'white';
+                loserColor = currentPlayer;
+                winner = currentPlayer === 'white' ? 'Hitam' : 'Putih';
+                this.logMove(`🏆 CHECKMATE! ${winner} menang! Raja ${currentPlayer === 'white' ? 'putih' : 'hitam'} telah skakmat! 🎉`);
+            } else if (gameEndResult === 'stalemate') {
+                // Stalemate - draw
+                isDraw = true;
+                drawReason = 'Stalemate';
+                this.logMove(`🤝 STALEMATE! Game berakhir seri karena pat! 🤝`);
+                this.turnIndicator.textContent = `Game Berakhir - Seri (Stalemate)!`;
+            } else if (gameEndResult === 'draw_insufficient_material') {
+                // Insufficient material - draw
+                isDraw = true;
+                drawReason = 'Material Tidak Cukup';
+                this.logMove(`🤝 SERI! Material tidak cukup untuk skakmat! 🤝`);
+                this.turnIndicator.textContent = `Game Berakhir - Seri (Material Tidak Cukup)!`;
+            } else if (gameEndResult === 'draw_repetition') {
+                // Threefold repetition - draw
+                isDraw = true;
+                drawReason = 'Pengulangan 3x';
+                this.logMove(`🤝 SERI! Posisi terulang 3 kali! 🤝`);
+                this.turnIndicator.textContent = `Game Berakhir - Seri (Pengulangan)!`;
+            } else if (gameEndResult === 'draw_fifty_moves') {
+                // 50-move rule - draw
+                isDraw = true;
+                drawReason = 'Aturan 50 Langkah';
+                this.logMove(`🤝 SERI! 50 langkah tanpa pion atau tangkapan! 🤝`);
+                this.turnIndicator.textContent = `Game Berakhir - Seri (50 Langkah)!`;
             } else {
-                // Not actually game over, should not happen
+                // Game is not actually over
                 console.log('Game end called but game is not over');
+                return;
+            }
+
+            // Handle draw cases
+            if (isDraw) {
+                // Add round to history for draw
+                this.addRoundToHistory(
+                    this.tournamentSettings.currentRound,
+                    this.gameStats.white.captured,
+                    this.gameStats.black.captured,
+                    this.gameStats.white.totalValue,
+                    this.gameStats.black.totalValue,
+                    null, // No winner for draw
+                    drawReason
+                );
+
+                // Show draw animation with play again option
+                this.showVictoryAnimation(null, null, true, drawReason);
+
+                // Update tournament and show play again option
+                if (this.engine.gameMode === 'bot-vs-bot') {
+                    this.updateTournamentAfterGame('draw', 'draw');
+                    setTimeout(() => {
+                        this.showPlayAgainPrompt();
+                    }, 4000);
+                } else {
+                    setTimeout(() => {
+                        this.showPlayAgainPrompt();
+                    }, 3000);
+                }
                 return;
             }
         }
@@ -1660,12 +1698,35 @@ class ChessGame {
         const historyList = document.getElementById('roundHistoryList');
         if (!historyList) return;
 
+        // Tentukan penyebab kekalahan/kemenangan
+        let gameEndReason = '';
+        if (winner) {
+            const loserColor = winner.includes('Alpha') ? 'black' : 'white';
+            const winnerColor = winner.includes('Alpha') ? 'white' : 'black';
+            
+            // Analisis penyebab kekalahan berdasarkan kondisi game
+            if (this.engine.isInCheck(loserColor)) {
+                gameEndReason = '👑 Checkmate - Raja terkepung';
+            } else if (this.engine.getAllValidMoves(loserColor).length === 0) {
+                gameEndReason = '🚫 Stalemate - Tidak ada gerakan valid';
+            } else if (whiteValue > blackValue * 2 || blackValue > whiteValue * 2) {
+                gameEndReason = '💀 Dominasi Material - Terlalu banyak bidak hilang';
+            } else {
+                gameEndReason = '⚔️ Strategi Superior';
+            }
+        } else {
+            gameEndReason = '🤝 Permainan Seimbang';
+        }
+
         const roundEntry = document.createElement('div');
         roundEntry.className = 'round-history-entry';
         roundEntry.innerHTML = `
             <div class="round-header">
                 <strong>Round ${roundNum}</strong>
                 ${winner ? `<span class="round-winner">🏆 ${winner}</span>` : '<span class="round-draw">🤝 Seri</span>'}
+            </div>
+            <div class="round-reason">
+                <small class="game-end-reason">${gameEndReason}</small>
             </div>
             <div class="round-stats">
                 <div class="round-stat">♔ Alpha: ${whiteValue} poin (${this.formatCaptures(whiteCaptures)})</div>
@@ -1675,8 +1736,11 @@ class ChessGame {
 
         historyList.appendChild(roundEntry);
 
-        // Auto scroll to bottom
-        historyList.scrollTop = historyList.scrollHeight;
+        // Auto scroll to bottom dengan smooth animation
+        historyList.scrollTo({
+            top: historyList.scrollHeight,
+            behavior: 'smooth'
+        });
     }
 
     formatCaptures(captures) {
