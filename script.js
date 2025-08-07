@@ -1309,13 +1309,17 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         if (this.engine.gameMode === 'bot-vs-bot') {
             this.updateTournamentAfterGame(winnerColor, loserColor);
 
-            // Show play again prompt instead of auto-continuing
+            // PERBAIKAN: Gunakan deteksi tournament selesai yang konsisten
+            const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
+            
+            // Show play again prompt for all cases
             setTimeout(() => {
-                if (this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
-                    this.showPlayAgainPrompt();
-                } else {
-                    this.endTournament();
-                }
+                this.showPlayAgainPrompt();
+                
+                // HAPUS auto endTournament dari sini - biar di showPlayAgainPrompt saja
+                // if (isTournamentComplete) {
+                //     this.endTournament();
+                // }
             }, 4000);
         } else {
             // For player vs bot mode
@@ -1341,11 +1345,18 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         let buttonsHtml = '';
         
         if (this.engine.gameMode === 'bot-vs-bot') {
-            const hasNextRound = this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds;
+            // PERBAIKAN: Gunakan logika yang lebih ketat untuk deteksi tournament selesai
+            const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
             const currentScore = `Alpha ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta (Seri: ${this.tournamentSettings.drawCount})`;
             
-            if (hasNextRound) {
-                // Ada round berikutnya
+            console.log('Tournament Status Check:', {
+                currentRound: this.tournamentSettings.currentRound,
+                totalRounds: this.tournamentSettings.totalRounds,
+                isTournamentComplete: isTournamentComplete
+            });
+            
+            if (!isTournamentComplete) {
+                // Masih ada round berikutnya - tampilkan info round yang akan datang
                 promptMessage = `
                     <div class="round-continuation">
                         <h2>🎯 Round ${this.tournamentSettings.currentRound} Selesai!</h2>
@@ -1367,43 +1378,100 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     </div>
                 `;
             } else {
-                // Tournament selesai
+                // Tournament BENAR-BENAR SELESAI - tampilkan hasil final dan opsi tournament baru
                 const whiteWins = this.tournamentSettings.roundWins.white;
                 const blackWins = this.tournamentSettings.roundWins.black;
                 const draws = this.tournamentSettings.drawCount;
                 
                 let championText = '';
+                let championIcon = '';
+                
                 if (whiteWins > blackWins) {
-                    championText = `🏆 Alpha-AI Juara Tournament! (${whiteWins} Kemenangan)`;
+                    championText = `Alpha-AI Juara Tournament!`;
+                    championIcon = '🏆👑';
                 } else if (blackWins > whiteWins) {
-                    championText = `🏆 Beta-AI Juara Tournament! (${blackWins} Kemenangan)`;
+                    championText = `Beta-AI Juara Tournament!`;
+                    championIcon = '🏆👑';
                 } else {
-                    championText = '🤝 Tournament Berakhir Seri!';
+                    championText = 'Tournament Berakhir Seri!';
+                    championIcon = '🤝✨';
+                }
+                
+                // Tambahan untuk tournament final yang lebih dramatis dan akurat
+                let finalTitle = '';
+                if (this.tournamentSettings.totalRounds === 1) {
+                    finalTitle = '🎯 Pertandingan Final Selesai!';
+                } else if (this.tournamentSettings.totalRounds <= 3) {
+                    finalTitle = `🏁 Tournament ${this.tournamentSettings.totalRounds} Round - FINAL!`;
+                } else if (this.tournamentSettings.totalRounds <= 5) {
+                    finalTitle = `🎊 Grand Tournament ${this.tournamentSettings.totalRounds} Round - FINAL!`;
+                } else {
+                    finalTitle = `👑 Ultimate Championship ${this.tournamentSettings.totalRounds} Round - FINAL!`;
                 }
                 
                 promptMessage = `
-                    <div class="tournament-complete">
-                        <h2>🎉 Tournament ${this.tournamentSettings.totalRounds} Round Selesai!</h2>
-                        <div class="final-results">
+                    <div class="tournament-final-complete">
+                        <h2>${finalTitle}</h2>
+                        <div class="champion-announcement">
+                            <p class="champion-crown">${championIcon}</p>
                             <p class="champion-text">${championText}</p>
-                            <div class="final-score">
-                                <p>📊 Hasil Akhir: ${currentScore}</p>
-                                <small>Total ${whiteWins + blackWins + draws} round dimainkan</small>
+                        </div>
+                        <div class="final-results">
+                            <div class="final-score-box">
+                                <h4>📊 Hasil Final Tournament</h4>
+                                <p class="final-score-display">${currentScore}</p>
+                                <small class="tournament-stats">Total ${whiteWins + blackWins + draws} round dimainkan | Tournament Level: ${this.tournamentSettings.totalRounds} Round</small>
                             </div>
                         </div>
                     </div>
                 `;
                 
                 buttonsHtml = `
-                    <div class="play-again-buttons tournament-complete">
-                        <button id="playAgainYes" class="btn-primary new-tournament-btn">🆕 Tournament Baru</button>
-                        <button id="viewRoundHistory" class="btn-secondary history-btn">📜 Lihat Riwayat Lengkap</button>
+                    <div class="play-again-buttons tournament-final">
+                        <button id="playAgainYes" class="btn-primary new-tournament-btn">🎮 Tournament Baru</button>
+                        <button id="viewRoundHistory" class="btn-secondary history-btn">🏆 Lihat Riwayat Final</button>
                         <button id="playAgainNo" class="btn-secondary menu-btn">🏠 Kembali ke Menu</button>
                     </div>
                 `;
             }
+        } else if (this.engine.gameMode === 'player-vs-bot') {
+            // Player vs Bot mode - bisa juga ada tournament
+            const hasNextRound = this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds;
+            
+            if (hasNextRound) {
+                // Player vs Bot masih ada round
+                promptMessage = `
+                    <div class="player-round-continuation">
+                        <h2>🎯 Round ${this.tournamentSettings.currentRound} Selesai!</h2>
+                        <p>🔥 Siap untuk Round ${this.tournamentSettings.currentRound + 1}?</p>
+                        <small>Sisa ${this.tournamentSettings.totalRounds - this.tournamentSettings.currentRound} round lagi!</small>
+                    </div>
+                `;
+                
+                buttonsHtml = `
+                    <div class="play-again-buttons player-continue">
+                        <button id="playAgainYes" class="btn-primary">🎮 Lanjut Round ${this.tournamentSettings.currentRound + 1}</button>
+                        <button id="playAgainNo" class="btn-secondary">🏠 Kembali ke Menu</button>
+                    </div>
+                `;
+            } else {
+                // Player vs Bot tournament selesai
+                promptMessage = `
+                    <div class="player-tournament-complete">
+                        <h2>🏁 Tournament Player vs Bot Selesai!</h2>
+                        <p>🎉 Terima kasih sudah bermain!</p>
+                    </div>
+                `;
+                
+                buttonsHtml = `
+                    <div class="play-again-buttons player-final">
+                        <button id="playAgainYes" class="btn-primary">🎮 Main Lagi</button>
+                        <button id="playAgainNo" class="btn-secondary">🏠 Kembali ke Menu</button>
+                    </div>
+                `;
+            }
         } else {
-            // Player vs Bot mode
+            // Mode lainnya - single game
             promptMessage = `
                 <div class="game-complete">
                     <h2>🎮 Permainan Selesai!</h2>
@@ -1435,9 +1503,15 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         if (playAgainYes) {
             playAgainYes.addEventListener('click', () => {
                 overlay.remove();
-                if (this.engine.gameMode === 'bot-vs-bot' && this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
+                
+                // PERBAIKAN: Gunakan deteksi tournament selesai yang sama
+                const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
+                
+                if (this.engine.gameMode === 'bot-vs-bot' && !isTournamentComplete) {
+                    console.log('Starting next round:', this.tournamentSettings.currentRound + 1);
                     this.startNewRound();
                 } else {
+                    console.log('Tournament complete, starting new game/tournament');
                     this.newGame(); // Start new tournament/game
                 }
             });
@@ -2250,7 +2324,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
     }
 
     updateTournamentAfterGame(winnerColor, loserColor) {
-        if (this.engine.gameMode !== 'bot-vs-bot') return;
+        if (this.engine.gameMode !== 'bot-vs-bot' && this.engine.gameMode !== 'player-vs-bot') return;
 
         // Update tournament stats
         if (winnerColor === 'white') {
@@ -2261,18 +2335,41 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             this.tournamentSettings.drawCount++;
         }
 
-        // Only show round completion message if there are more rounds to play
-        if (this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds) {
+        // PERBAIKAN: Gunakan logika yang lebih ketat untuk deteksi tournament selesai
+        const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
+
+        console.log('Tournament After Game Check:', {
+            currentRound: this.tournamentSettings.currentRound,
+            totalRounds: this.tournamentSettings.totalRounds,
+            isTournamentComplete: isTournamentComplete,
+            winnerColor: winnerColor,
+            loserColor: loserColor
+        });
+
+        if (!isTournamentComplete) {
+            // Masih ada round berikutnya
             this.logMove(`🎯 Round ${this.tournamentSettings.currentRound} dari ${this.tournamentSettings.totalRounds} selesai!`);
             this.logMove(`📊 Skor Tournament: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
-            this.logMove(`🔥 Siap untuk Round ${this.tournamentSettings.currentRound + 1}?`);
+            this.logMove(`🔥 Siap untuk Round ${this.tournamentSettings.currentRound + 1}? Sisa ${this.tournamentSettings.totalRounds - this.tournamentSettings.currentRound} round lagi!`);
         } else {
-            // Tournament complete - show final message
-            this.logMove(`🎯 TOURNAMENT SELESAI SETELAH ${this.tournamentSettings.totalRounds} ROUND!`);
-            this.logMove(`📊 Hasil Akhir: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
-            setTimeout(() => {
-                this.endTournament();
-            }, 2000);
+            // Tournament BENAR-BENAR selesai
+            this.logMove(`🏁 ═══ TOURNAMENT ${this.tournamentSettings.totalRounds} ROUND FINAL ═══`);
+            this.logMove(`🎊 TOURNAMENT RESMI SELESAI!`);
+            this.logMove(`📊 HASIL FINAL: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
+            
+            // Tentukan juara
+            const whiteWins = this.tournamentSettings.roundWins.white;
+            const blackWins = this.tournamentSettings.roundWins.black;
+            
+            if (whiteWins > blackWins) {
+                this.logMove(`👑 JUARA TOURNAMENT: Alpha-Bot! 🏆`);
+            } else if (blackWins > whiteWins) {
+                this.logMove(`👑 JUARA TOURNAMENT: Beta-Bot! 🏆`);
+            } else {
+                this.logMove(`🤝 TOURNAMENT BERAKHIR SERI - TIE GAME! 🤝`);
+            }
+            
+            this.logMove(`🏁 ═══════════════════════════════════`);
         }
 
         this.updateTournamentDisplay();
