@@ -1,0 +1,17 @@
+
+{
+  "name": "kennzy-website",
+  "version": "1.0.0",
+  "description": "Personal website for Bang Wily",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve . -p $PORT",
+    "dev": "serve . -p 3000"
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

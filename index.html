@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Catur Koboy</title>
+    <meta name="description" content="Permainan catur bergaya koboi dengan AI bot yang menantang!">
+    <link rel="icon" href="https://files.catbox.moe/9cq0yk.jpg" type="image/jpeg">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet"></head>
+<body>
+    <div class="western-bg"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Pengaturan Game</h2>
+            <div class="setting-group">
+                <label for="gameMode">Mode Permainan:</label>
+                <select id="gameMode">
+                    <option value="player-vs-bot">Pemain vs Bot</option>
+                    <option value="bot-vs-bot">Bot vs Bot</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label for="difficulty">Tingkat Kesulitan Bot:</label>
+                <select id="difficulty">
+                    <option value="noob">Level 1 - 🤪 Pemula Banget</option>
+                    <option value="easy">Level 2 - 🤠 Mudah</option>
+                    <option value="medium">Level 3 - ⚡ Sedang</option>
+                    <option value="hard">Level 4 - 💀 Sulit</option>
+                    <option value="expert">Level 5 - 🏆 Ahli</option>
+                    <option value="master">Level 6 - 👑 Master</option>
+                    <option value="grandmaster">Level 7 - 🔥 Grandmaster</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label for="botSpeed">Kecepatan Bot (detik):</label>
+                <input type="range" id="botSpeed" min="1" max="5" value="2">
+                <span id="speedValue">2s</span>
+            </div>
+            <button id="startGame" class="btn-primary">Mulai Permainan</button>
+        </div>
+    </div>
+
+    <!-- Welcome Screen -->
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-content">
+            <h1 class="welcome-title">🤠 GAMES CATUR 🤠</h1>
+            <p class="welcome-subtitle">Selamat datang di permainan catur bergaya koboi!</p>
+
+            <div class="game-mode-selection">
+                <h2>Pilih Mode Permainan:</h2>
+
+                <div class="mode-card" data-mode="player-vs-bot">
+                    <div class="mode-icon">👤 vs 🤖</div>
+                    <h3>Pemain vs Bot</h3>
+                    <p>Bermain melawan AI dengan berbagai tingkat kesulitan</p>
+                </div>
+
+                <div class="mode-card" data-mode="bot-vs-bot">
+                    <div class="mode-icon">🤖 vs 🤖</div>
+                    <h3>Bot vs Bot</h3>
+                    <p>Tonton pertarungan epik antara dua AI</p>
+                </div>
+            </div>
+
+            <div class="difficulty-selection" id="difficultySelection" style="display: none;">
+                <h3>Pengaturan Player vs Bot:</h3>
+                <div class="player-settings">
+                    <div class="setting-row">
+                        <label for="playerDifficulty">Kesulitan Bot:</label>
+                        <select id="playerDifficulty" class="difficulty-select">
+                            <option value="noob">Level 1 - 🤪 Pemula Banget</option>
+                            <option value="easy">Level 2 - 🤠 Mudah</option>
+                            <option value="medium" selected>Level 3 - ⚡ Sedang</option>
+                            <option value="hard">Level 4 - 💀 Sulit</option>
+                            <option value="expert">Level 5 - 🏆 Ahli</option>
+                            <option value="master">Level 6 - 👑 Master</option>
+                            <option value="grandmaster">Level 7 - 🔥 Grandmaster</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label for="playerTotalRounds">Total Round:</label>
+                        <select id="playerTotalRounds" class="difficulty-select">
+                            <option value="1" selected>Round 1</option>
+                            <option value="2">Round 2</option>
+                            <option value="3">Round 3</option>
+                            <option value="4">Round 4</option>
+                            <option value="5">Round 5</option>
+                        </select>
+                    </div>
+                    <div class="difficulty-guide-mini">
+                        <div class="guide-header" onclick="toggleGuide(this)">
+                            <h5>📚 Panduan Level Kesulitan</h5>
+                            <span class="guide-toggle">▼</span>
+                        </div>
+                        <div class="guide-content collapsed">
+                            <div class="guide-item level-1">
+                                <div class="level-header">🤪 <strong>Level 1 - Pemula Banget</strong></div>
+                                <div class="level-details">Hampir bermain secara random, sering melakukan blunder besar, tidak mempertimbangkan strategi</div>
+                            </div>
+                            <div class="guide-item level-2">
+                                <div class="level-header">🤠 <strong>Level 2 - Mudah</strong></div>
+                                <div class="level-details">Memahami dasar catur, suka menangkap bidak lawan tanpa strategi jangka panjang</div>
+                            </div>
+                            <div class="guide-item level-3">
+                                <div class="level-header">⚡ <strong>Level 3 - Sedang</strong></div>
+                                <div class="level-details">Menggunakan strategi sederhana, evaluasi 2 langkah ke depan, mulai mempertimbangkan posisi</div>
+                            </div>
+                            <div class="guide-item level-4">
+                                <div class="level-header">💀 <strong>Level 4 - Sulit</strong></div>
+                                <div class="level-details">Strategi yang baik, evaluasi 3 langkah ke depan, memahami taktik dasar catur</div>
+                            </div>
+                            <div class="guide-item level-5">
+                                <div class="level-header">🏆 <strong>Level 5 - Ahli</strong></div>
+                                <div class="level-details">Strategi advanced, evaluasi 4 langkah ke depan, menguasai opening dan endgame dasar</div>
+                            </div>
+                            <div class="guide-item level-6">
+                                <div class="level-header">👑 <strong>Level 6 - Master</strong></div>
+                                <div class="level-details">Strategi expert, evaluasi 5 langkah ke depan, menguasai taktik kompleks dan posisi</div>
+                            </div>
+                            <div class="guide-item level-7">
+                                <div class="level-header">🔥 <strong>Level 7 - Grandmaster</strong></div>
+                                <div class="level-details">Hampir sempurna, evaluasi 6+ langkah ke depan, strategi tingkat kompetitif</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="setting-buttons">
+                        <button id="resetPlayerSettings" class="reset-btn">🔄 Reset</button>
+                        <button id="savePlayerSettings" class="save-btn">💾 Simpan</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="bot-vs-bot-settings" id="botVsBotSettings" style="display: none;">
+                <h3>Pengaturan Bot vs Bot:</h3>
+                <div class="bots-grid">
+                    <div class="bot-setting-card">
+                        <h4>🤖 Alpha-Bot (Putih)</h4>
+                        <div class="setting-row">
+                            <label for="botWhiteDifficulty">Kesulitan:</label>
+                            <select id="botWhiteDifficulty" class="difficulty-select">
+                                <option value="noob">Level 1 - 🤪 Pemula Banget</option>
+                                <option value="easy">Level 2 - 🤠 Mudah</option>
+                                <option value="medium" selected>Level 3 - ⚡ Sedang</option>
+                                <option value="hard">Level 4 - 💀 Sulit</option>
+                                <option value="expert">Level 5 - 🏆 Ahli</option>
+                                <option value="master">Level 6 - 👑 Master</option>
+                                <option value="grandmaster">Level 7 - 🔥 Grandmaster</option>
+                            </select>
+                        </div>
+                        <div class="difficulty-guide-mini">
+                            <div class="guide-header" onclick="toggleGuide(this)">
+                                <h5>📚 Panduan Level Kesulitan</h5>
+                                <span class="guide-toggle">▼</span>
+                            </div>
+                            <div class="guide-content collapsed">
+                                <div class="guide-item level-1">
+                                    <div class="level-header">🤪 <strong>Level 1 - Pemula Banget</strong></div>
+                                    <div class="level-details">Hampir bermain secara random, sering melakukan blunder besar, tidak mempertimbangkan strategi</div>
+                                </div>
+                                <div class="guide-item level-2">
+                                    <div class="level-header">🤠 <strong>Level 2 - Mudah</strong></div>
+                                    <div class="level-details">Memahami dasar catur, suka menangkap bidak lawan tanpa strategi jangka panjang</div>
+                                </div>
+                                <div class="guide-item level-3">
+                                    <div class="level-header">⚡ <strong>Level 3 - Sedang</strong></div>
+                                    <div class="level-details">Menggunakan strategi sederhana, evaluasi 2 langkah ke depan, mulai mempertimbangkan posisi</div>
+                                </div>
+                                <div class="guide-item level-4">
+                                    <div class="level-header">💀 <strong>Level 4 - Sulit</strong></div>
+                                    <div class="level-details">Strategi yang baik, evaluasi 3 langkah ke depan, memahami taktik dasar catur</div>
+                                </div>
+                                <div class="guide-item level-5">
+                                    <div class="level-header">🏆 <strong>Level 5 - Ahli</strong></div>
+                                    <div class="level-details">Strategi advanced, evaluasi 4 langkah ke depan, menguasai opening dan endgame dasar</div>
+                                </div>
+                                <div class="guide-item level-6">
+                                    <div class="level-header">👑 <strong>Level 6 - Master</strong></div>
+                                    <div class="level-details">Strategi expert, evaluasi 5 langkah ke depan, menguasai taktik kompleks dan posisi</div>
+                                </div>
+                                <div class="guide-item level-7">
+                                    <div class="level-header">🔥 <strong>Level 7 - Grandmaster</strong></div>
+                                    <div class="level-details">Hampir sempurna, evaluasi 6+ langkah ke depan, strategi tingkat kompetitif</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bot-setting-card">
+                        <h4>🤖 Beta-Bot (Hitam)</h4>
+                        <div class="setting-row">
+                            <label for="botBlackDifficulty">Kesulitan:</label>
+                            <select id="botBlackDifficulty" class="difficulty-select">
+                                <option value="noob">Level 1 - 🤪 Pemula Banget</option>
+                                <option value="easy">Level 2 - 🤠 Mudah</option>
+                                <option value="medium">Level 3 - ⚡ Sedang</option>
+                                <option value="hard" selected>Level 4 - 💀 Sulit</option>
+                                <option value="expert">Level 5 - 🏆 Ahli</option>
+                                <option value="master">Level 6 - 👑 Master</option>
+                                <option value="grandmaster">Level 7 - 🔥 Grandmaster</option>
+                            </select>
+                        </div>
+                        <div class="difficulty-guide-mini">
+                            <div class="guide-header" onclick="toggleGuide(this)">
+                                <h5>📚 Panduan Level Kesulitan</h5>
+                                <span class="guide-toggle">▼</span>
+                            </div>
+                            <div class="guide-content collapsed">
+                                <div class="guide-item level-1">
+                                    <div class="level-header">🤪 <strong>Level 1 - Pemula Banget</strong></div>
+                                    <div class="level-details">Hampir bermain secara random, sering melakukan blunder besar, tidak mempertimbangkan strategi</div>
+                                </div>
+                                <div class="guide-item level-2">
+                                    <div class="level-header">🤠 <strong>Level 2 - Mudah</strong></div>
+                                    <div class="level-details">Memahami dasar catur, suka menangkap bidak lawan tanpa strategi jangka panjang</div>
+                                </div>
+                                <div class="guide-item level-3">
+                                    <div class="level-header">⚡ <strong>Level 3 - Sedang</strong></div>
+                                    <div class="level-details">Menggunakan strategi sederhana, evaluasi 2 langkah ke depan, mulai mempertimbangkan posisi</div>
+                                </div>
+                                <div class="guide-item level-4">
+                                    <div class="level-header">💀 <strong>Level 4 - Sulit</strong></div>
+                                    <div class="level-details">Strategi yang baik, evaluasi 3 langkah ke depan, memahami taktik dasar catur</div>
+                                </div>
+                                <div class="guide-item level-5">
+                                    <div class="level-header">🏆 <strong>Level 5 - Ahli</strong></div>
+                                    <div class="level-details">Strategi advanced, evaluasi 4 langkah ke depan, menguasai opening dan endgame dasar</div>
+                                </div>
+                                <div class="guide-item level-6">
+                                    <div class="level-header">👑 <strong>Level 6 - Master</strong></div>
+                                    <div class="level-details">Strategi expert, evaluasi 5 langkah ke depan, menguasai taktik kompleks dan posisi</div>
+                                </div>
+                                <div class="guide-item level-7">
+                                    <div class="level-header">🔥 <strong>Level 7 - Grandmaster</strong></div>
+                                    <div class="level-details">Hampir sempurna, evaluasi 6+ langkah ke depan, strategi tingkat kompetitif</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <label for="gameSpeed">Kecepatan Game:</label>
+                    <div class="speed-control-container">
+                        <input type="range" id="gameSpeed" class="speed-slider" min="0.1" max="3" step="0.1" value="1">
+                        <div class="speed-display">
+                            <span id="gameSpeedValue" class="speed-value">1.0s</span>
+                            <div class="speed-labels">
+                                <span class="speed-label-min">⚡ Cepat</span>
+                                <span class="speed-label-max">🐌 Lambat</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <label for="totalRounds">Total Round Tournament:</label>
+                    <select id="totalRounds" class="difficulty-select">
+                        <option value="1">Round 1</option>
+                        <option value="2">Round 2</option>
+                        <option value="3" selected>Round 3</option>
+                        <option value="4">Round 4</option>
+                        <option value="5">Round 5</option>
+                    </select>
+                </div>
+                <div class="setting-buttons">
+                    <button id="resetToDefault" class="reset-btn">🔄 Reset Default</button>
+                    <button id="saveSettings" class="save-btn">💾 Simpan Pengaturan</button>
+                </div>
+                
+            </div>
+
+            <button id="startGameFromWelcome" class="start-game-btn" disabled>🎮 MULAI PERMAINAN</button>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <!-- Header -->
+        <header class="game-header">
+            <h1 class="game-title">🤠 GAMES CATUR 🤠</h1>
+            <div class="header-controls">
+                <button id="settingsBtn" class="settings-btn">⚙️</button>
+            </div>
+        </header>
+
+
+
+        <!-- Game Info -->
+        <div class="game-info">
+            <div class="player-info">
+                <div class="player white-player">
+                    <span class="player-name">Pemain Putih</span>
+                    <div class="timer" id="whiteTimer">10:00</div>
+                </div>
+                <div class="turn-indicator" id="turnIndicator">
+                    Giliran: Putih
+                </div>
+                <div class="player black-player">
+                    <span class="player-name">Pemain Hitam</span>
+                    <div class="timer" id="blackTimer">10:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chess Board -->
+        <div class="board-container">
+            <div id="chessBoard" class="chess-board"></div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="game-controls">
+            <button id="newGameBtn" class="btn-secondary">Permainan Baru</button>
+            <button id="undoBtn" class="btn-secondary">Batalkan</button>
+            <button id="pauseBtn" class="btn-secondary">Pause</button>
+        </div>
+
+        <!-- Console Log -->
+        <div class="console-log">
+            <h3>Log Permainan</h3>
+            <div id="gameLog" class="log-content"></div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="statistics-section">
+            <div class="stats-header">
+                <h3>📊 Statistik Tangkapan & Tournament</h3>
+                <button id="toggleStats" class="toggle-stats-btn" type="button">📈 Tampilkan Statistik</button>
+            </div>
+            <div id="statisticsContent" class="statistics-content">
+                <!-- Tournament Progress -->
+                <div id="roundProgress" class="tournament-section" style="display: none;">
+                    <div class="round-info">
+                        <h4 id="currentRound">🏆 Round 1</h4>
+                        <p>Tournament: <span id="totalRoundsDisplay">3</span> Round</p>
+                        <div class="tournament-score">
+                            <span class="white-score">Putih: <span id="whiteRoundWins">0</span></span>
+                            <span class="black-score">Hitam: <span id="blackRoundWins">0</span></span>
+                            <span class="draw-score">Seri: <span id="drawCount">0</span></span>
+                        </div>
+                        <button id="startNewRoundBtn" class="start-round-btn" style="display: none;">🎮 Mulai Round Baru</button>
+                    </div>
+                </div>
+
+                <!-- Capture Statistics -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>♔ Pemain Putih</h4>
+                        <div id="whiteStatsInline" class="player-stats-inline">
+                            <div class="captured-pieces-inline">♔ Tangkapan: 🔸 Belum ada tangkapan</div>
+                            <div class="total-value-inline">💰 Total Nilai: 0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>♚ Pemain Hitam</h4>
+                        <div id="blackStatsInline" class="player-stats-inline">
+                            <div class="captured-pieces-inline">♚ Tangkapan: 🔸 Belum ada tangkapan</div>
+                            <div class="total-value-inline">💰 Total Nilai: 0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Powered by <a href="https://wa.me/6289688206739" target="_blank" rel="noopener noreferrer">Bang Wily</a></p>
+    </footer>
+
+    <script src="chess-engine.js"></script>
+    <script src="script.js"></script>
+    <script src="Wilykun.js"></script>
+</body>
+</html>
