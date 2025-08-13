@@ -19,7 +19,12 @@ class ChessGame {
         this.selectedGameMode = null;
         this.selectedDifficulty = null;
 
-        // Game statistics
+        // Uptime monitoring
+        this.uptimeStartTime = Date.now();
+        this.uptimeInterval = null;
+        this.sessionStartTime = Date.now();
+
+        // Game statistics - inisialisasi di awal
         this.gameStats = {
             white: {
                 captured: { pawn: 0, rook: 0, knight: 0, bishop: 0, queen: 0 },
@@ -36,7 +41,9 @@ class ChessGame {
         };
 
         this.totalGames = 0;
-        this.predictionAccuracy = { white: 0, black: 0 }; // For bot vs bot prediction
+        this.predictionAccuracy = { white: 0, black: 0 };
+
+
 
         // Tournament system dengan maksimal 5 round
         this.tournamentSettings = {
@@ -50,6 +57,9 @@ class ChessGame {
         this.setupWelcomeScreen();
         this.setupEventListeners();
         this.updateLogCounter();
+
+        // Load saved theme on startup
+        this.loadSavedTheme();
     }
 
     setupWelcomeScreen() {
@@ -75,50 +85,50 @@ class ChessGame {
         const speedCards = document.querySelectorAll('.speed-card');
         const speedInput = document.getElementById('gameSpeed');
         const speedValueDisplay = document.getElementById('gameSpeedValue');
-        
+
         if (speedCards.length > 0 && speedInput && speedValueDisplay) {
             // Initialize engine speed
             if (this.engine) {
                 this.engine.botSpeed = 1500; // 1.5 second default
             }
-            
+
             // Handle speed card selection
             speedCards.forEach(card => {
                 card.addEventListener('click', () => {
                     // Remove selected class from all cards
                     speedCards.forEach(c => c.classList.remove('selected'));
-                    
+
                     // Add selected class to clicked card
                     card.classList.add('selected');
-                    
+
                     // Get speed value
                     const speed = parseFloat(card.dataset.speed);
                     const speedName = card.dataset.name;
-                    
+
                     // Update hidden input
                     speedInput.value = speed;
-                    
+
                     // Update engine speed
                     if (this.engine) {
                         this.engine.botSpeed = speed * 1000;
                         console.log(`Speed updated to: ${speed}s (${this.engine.botSpeed}ms)`);
                     }
-                    
+
                     // Save speed setting
                     localStorage.setItem('chessGameSpeed', speed.toString());
-                    
+
                     // Update display
                     const speedNameMap = {
                         'ultra': '⚡⚡ Ultra Kilat',
-                        'lightning': '⚡ Kilat', 
+                        'lightning': '⚡ Kilat',
                         'fast': '🚀 Cepat',
                         'normal': '⭐ Normal',
                         'slow': '🐌 Lambat',
                         'turtle': '🐢 Kura-kura'
                     };
-                    
+
                     speedValueDisplay.textContent = `${speedNameMap[speedName]} (${speed}s)`;
-                    
+
                     // Add selection animation
                     card.style.transform = 'translateY(-5px) scale(1.05)';
                     setTimeout(() => {
@@ -126,21 +136,21 @@ class ChessGame {
                     }, 200);
                 });
             });
-            
+
             // Load saved speed setting and select appropriate card
             const savedSpeed = localStorage.getItem('chessGameSpeed');
             if (savedSpeed) {
                 const speedValue = parseFloat(savedSpeed);
                 speedInput.value = speedValue;
-                
+
                 if (this.engine) {
                     this.engine.botSpeed = speedValue * 1000;
                 }
-                
+
                 // Find and select the closest speed card
                 let closestCard = null;
                 let closestDiff = Infinity;
-                
+
                 speedCards.forEach(card => {
                     const cardSpeed = parseFloat(card.dataset.speed);
                     const diff = Math.abs(cardSpeed - speedValue);
@@ -149,15 +159,15 @@ class ChessGame {
                         closestCard = card;
                     }
                 });
-                
+
                 if (closestCard) {
                     speedCards.forEach(c => c.classList.remove('selected'));
                     closestCard.classList.add('selected');
-                    
+
                     const speedName = closestCard.dataset.name;
                     const speedNameMap = {
                         'ultra': '⚡⚡ Ultra Kilat',
-                        'lightning': '⚡ Kilat', 
+                        'lightning': '⚡ Kilat',
                         'fast': '🚀 Cepat',
                         'normal': '⭐ Normal',
                         'slow': '🐌 Lambat',
@@ -552,7 +562,7 @@ class ChessGame {
             const lastMove = this.engine.gameHistory[this.engine.gameHistory.length - 1];
             const fromSquare = this.getSquareElement(lastMove.from.row, lastMove.from.col);
             const toSquare = this.getSquareElement(lastMove.to.row, lastMove.to.col);
-            
+
             if (fromSquare) fromSquare.classList.add('last-move');
             if (toSquare) toSquare.classList.add('last-move');
         }
@@ -627,9 +637,69 @@ class ChessGame {
     }
 
     makePlayerMove(fromRow, fromCol, toRow, toCol) {
+        const piece = this.engine.board[fromRow][fromCol];
+
+        // Check if pawn promotion is needed
+        if (piece.type === 'pawn' &&
+            ((piece.color === 'white' && toRow === 0) || (piece.color === 'black' && toRow === 7))) {
+            this.showPromotionDialog(fromRow, fromCol, toRow, toCol);
+            return;
+        }
+
         const move = this.engine.makeMove(fromRow, fromCol, toRow, toCol);
         this.engine.selectedSquare = null;
 
+        this.completePlayerMove(move, toRow, toCol);
+    }
+
+    showPromotionDialog(fromRow, fromCol, toRow, toCol) {
+        const overlay = document.createElement('div');
+        overlay.className = 'promotion-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'promotion-dialog';
+
+        const piece = this.engine.board[fromRow][fromCol];
+        const isWhite = piece.color === 'white';
+
+        dialog.innerHTML = `
+            <h3>🎉 Promosi Pion!</h3>
+            <p>Pilih bidak untuk promosi pion Anda:</p>
+            <div class="promotion-pieces">
+                <button class="promotion-btn" data-piece="queen">
+                    ${isWhite ? '♕' : '♛'} Ratu
+                </button>
+                <button class="promotion-btn" data-piece="rook">
+                    ${isWhite ? '♖' : '♜'} Benteng
+                </button>
+                <button class="promotion-btn" data-piece="bishop">
+                    ${isWhite ? '♗' : '♝'} Gajah
+                </button>
+                <button class="promotion-btn" data-piece="knight">
+                    ${isWhite ? '♘' : '♞'} Kuda
+                </button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Add event listeners
+        const buttons = dialog.querySelectorAll('.promotion-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const promotionPiece = btn.dataset.piece;
+                overlay.remove();
+
+                const move = this.engine.makeMove(fromRow, fromCol, toRow, toCol, promotionPiece);
+                this.engine.selectedSquare = null;
+
+                this.completePlayerMove(move, toRow, toCol);
+            });
+        });
+    }
+
+    completePlayerMove(move, toRow, toCol) {
         // Track captures
         if (move.captured) {
             this.trackCapture(move);
@@ -688,7 +758,7 @@ class ChessGame {
         }
 
         this.botThinking = true;
-        
+
         // Anti-stuck timeout mechanism
         const botMoveTimeout = setTimeout(() => {
             console.error('Bot move timeout - forcing recovery');
@@ -702,7 +772,7 @@ class ChessGame {
 
         if (this.engine.gameMode === 'bot-vs-bot') {
             const difficultyIcons = {
-                'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀', 
+                'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀',
                 'expert': '🏆', 'master': '👑', 'grandmaster': '🔥'
             };
 
@@ -748,7 +818,8 @@ class ChessGame {
                 if (botMove && this.engine.isValidMove(botMove.from.row, botMove.from.col, botMove.to.row, botMove.to.col)) {
                     const move = this.engine.makeMove(
                         botMove.from.row, botMove.from.col,
-                        botMove.to.row, botMove.to.col
+                        botMove.to.row, botMove.to.col,
+                        botMove.promotion || 'queen'
                     );
 
                     // Track captures
@@ -804,7 +875,7 @@ class ChessGame {
                 } else {
                     console.error('Invalid bot move generated:', botMove);
                     this.botThinking = false;
-                    
+
                     // Force game end if no valid moves
                     const validMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
                     if (validMoves.length === 0) {
@@ -822,7 +893,7 @@ class ChessGame {
                 console.error('Critical error in bot move execution:', error);
                 clearTimeout(botMoveTimeout);
                 this.botThinking = false;
-                
+
                 // Emergency recovery
                 setTimeout(() => {
                     if (!this.isPaused && !this.engine.isGameOver()) {
@@ -859,6 +930,11 @@ class ChessGame {
             moveText += ` (menangkap ${capturedName})`;
         }
 
+        if (move.promotion) {
+            const promotedName = pieceNames[move.promotion];
+            moveText += ` 🎉 PROMOSI → ${promotedName}!`;
+        }
+
         if (this.engine.isInCheck(this.engine.currentPlayer)) {
             moveText += ' - SKAK!';
         }
@@ -884,7 +960,7 @@ class ChessGame {
 
         // Define difficulty icons untuk semua level
         const difficultyIcons = {
-            'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀', 
+            'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀',
             'expert': '🏆', 'master': '👑', 'grandmaster': '🔥'
         };
 
@@ -1010,7 +1086,7 @@ class ChessGame {
             const blackDiff = this.engine.botBlackDifficulty;
 
             const difficultyIcons = {
-                'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀', 
+                'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀',
                 'expert': '🏆', 'master': '👑', 'grandmaster': '🔥'
             };
 
@@ -1074,20 +1150,20 @@ class ChessGame {
     downloadGameLog() {
         const logs = [];
         const logEntries = this.gameLog.children;
-        
+
         // Create header with game info
         const gameInfo = `
 === GAME CATUR LOG ===
 Mode: ${this.engine.gameMode}
 Tanggal: ${new Date().toLocaleDateString('id-ID')}
 Waktu: ${new Date().toLocaleTimeString('id-ID')}
-${this.engine.gameMode === 'bot-vs-bot' ? 
-    `Alpha-Bot: ${this.engine.botWhiteDifficulty} vs Beta-Bot: ${this.engine.botBlackDifficulty}` : 
+${this.engine.gameMode === 'bot-vs-bot' ?
+    `Alpha-Bot: ${this.engine.botWhiteDifficulty} vs Beta-Bot: ${this.engine.botBlackDifficulty}` :
     `Difficulty: ${this.engine.difficulty}`}
 Kecepatan: ${this.engine.botSpeed / 1000}s
 =====================
         `.trim();
-        
+
         logs.push(gameInfo);
         logs.push('');
 
@@ -1103,15 +1179,15 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         const logContent = logs.join('\n');
         const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        
+
         // Create download link
         const link = document.createElement('a');
         link.href = url;
-        
+
         // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
         link.download = `chess-game-log-${timestamp}.txt`;
-        
+
         // Trigger download
         document.body.appendChild(link);
         link.click();
@@ -1155,6 +1231,222 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         }, 3000);
     }
 
+    showUptimeModal() {
+        const uptimeModal = document.getElementById('uptimeModal');
+        if (uptimeModal) {
+            uptimeModal.style.display = 'block';
+
+            // Update uptime info
+            this.updateUptimeInfo();
+
+            // Start uptime interval
+            if (this.uptimeInterval) {
+                clearInterval(this.uptimeInterval);
+            }
+
+            this.uptimeInterval = setInterval(() => {
+                this.updateUptimeInfo();
+            }, 1000);
+        }
+    }
+
+    updateUptimeInfo() {
+        // Calculate session uptime
+        const sessionUptime = Date.now() - this.sessionStartTime;
+        const sessionHours = Math.floor(sessionUptime / (1000 * 60 * 60));
+        const sessionMinutes = Math.floor((sessionUptime % (1000 * 60 * 60)) / (1000 * 60));
+        const sessionSeconds = Math.floor((sessionUptime % (1000 * 60)) / 1000);
+
+        // Update server uptime display
+        const serverUptimeElement = document.getElementById('serverUptime');
+        if (serverUptimeElement) {
+            serverUptimeElement.textContent = `${sessionHours}h ${sessionMinutes}m ${sessionSeconds}s`;
+        }
+
+        // Simulate realistic RAM usage (25-75% with slow variation)
+        const baseRamUsage = 45;
+        const ramVariation = Math.sin(Date.now() / 10000) * 15;
+        const ramUsage = Math.floor(baseRamUsage + ramVariation);
+        const ramUsageBar = document.getElementById('ramUsageBar');
+        const ramUsageValue = document.getElementById('ramUsageValue');
+        const usedMemoryElement = document.getElementById('usedMemory');
+        const availableMemoryElement = document.getElementById('availableMemory');
+
+        if (ramUsageBar) ramUsageBar.style.width = `${ramUsage}%`;
+        if (ramUsageValue) ramUsageValue.textContent = `${ramUsage}%`;
+        if (usedMemoryElement) usedMemoryElement.textContent = `${(32 * ramUsage / 100).toFixed(1)} GB`;
+        if (availableMemoryElement) availableMemoryElement.textContent = `${(32 * (100 - ramUsage) / 100).toFixed(1)} GB`;
+
+        // Simulate realistic CPU usage (15-45% with variations)
+        const baseCpuUsage = 25;
+        const cpuVariation = Math.cos(Date.now() / 8000) * 10;
+        const cpuUsage = Math.floor(baseCpuUsage + cpuVariation);
+        const cpuUsageBar = document.getElementById('cpuUsageBar');
+        const cpuUsageValue = document.getElementById('cpuUsageValue');
+
+        if (cpuUsageBar) cpuUsageBar.style.width = `${cpuUsage}%`;
+        if (cpuUsageValue) cpuUsageValue.textContent = `${cpuUsage}%`;
+
+        // Update CPU frequency based on usage
+        const cpuFrequencyElement = document.getElementById('cpuFrequency');
+        if (cpuFrequencyElement) {
+            const baseFreq = 3.6;
+            const boostFreq = baseFreq + (cpuUsage / 100) * 1.9; // Up to 5.5 GHz boost
+            cpuFrequencyElement.textContent = `${boostFreq.toFixed(1)} GHz`;
+        }
+
+        // Simulate CPU temperature (40-65°C based on usage)
+        const cpuTempElement = document.getElementById('cpuTemp');
+        if (cpuTempElement) {
+            const baseTemp = 45;
+            const tempIncrease = (cpuUsage / 100) * 20;
+            const currentTemperature = Math.floor(baseTemp + tempIncrease);
+            cpuTempElement.textContent = `${currentTemperature}°C`;
+        }
+
+        // Update network status
+        const networkStatusElement = document.getElementById('networkStatus');
+        if (networkStatusElement) {
+            const statuses = ['🟢 Online - Excellent', '🟢 Online - Good', '🟡 Online - Fair'];
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            networkStatusElement.textContent = randomStatus;
+        }
+
+        // Update last updated time
+        const lastUpdatedElement = document.getElementById('lastUpdated');
+        if (lastUpdatedElement) {
+            const now = new Date();
+            lastUpdatedElement.textContent = now.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // Update health indicators based on current metrics
+        this.updateHealthIndicators(cpuUsage, ramUsage, 45);
+    }
+
+    updateHealthIndicators(cpuUsage, ramUsage, cpuTemp) {
+        const healthCards = document.querySelectorAll('.health-card');
+
+        // CPU Health
+        const cpuHealthCard = healthCards[0];
+        if (cpuHealthCard) {
+            const cpuIcon = cpuHealthCard.querySelector('.health-icon');
+            const cpuStatus = cpuHealthCard.querySelector('.health-status');
+
+            if (cpuUsage < 30 && cpuTemp < 50) {
+                cpuIcon.textContent = '✅';
+                cpuStatus.textContent = 'Excellent';
+                cpuHealthCard.className = 'health-card healthy';
+            } else if (cpuUsage < 60 && cpuTemp < 70) {
+                cpuIcon.textContent = '⚠️';
+                cpuStatus.textContent = 'Good';
+                cpuHealthCard.className = 'health-card warning';
+            } else {
+                cpuIcon.textContent = '🔥';
+                cpuStatus.textContent = 'High Load';
+                cpuHealthCard.className = 'health-card critical';
+            }
+        }
+
+        // Memory Health
+        const memoryHealthCard = healthCards[1];
+        if (memoryHealthCard) {
+            const memoryIcon = memoryHealthCard.querySelector('.health-icon');
+            const memoryStatus = memoryHealthCard.querySelector('.health-status');
+
+            if (ramUsage < 50) {
+                memoryIcon.textContent = '✅';
+                memoryStatus.textContent = 'Excellent';
+                memoryHealthCard.className = 'health-card healthy';
+            } else if (ramUsage < 75) {
+                memoryIcon.textContent = '⚠️';
+                memoryStatus.textContent = 'Good';
+                memoryHealthCard.className = 'health-card warning';
+            } else {
+                memoryIcon.textContent = '🚨';
+                memoryStatus.textContent = 'High Usage';
+                memoryHealthCard.className = 'health-card critical';
+            }
+        }
+    }
+
+    // Theme Management Methods
+    loadSavedTheme() {
+        const savedTheme = localStorage.getItem('chessGameTheme') || 'default';
+
+        // Remove active class from all cards
+        const themeCards = document.querySelectorAll('.theme-card');
+        themeCards.forEach(card => card.classList.remove('active'));
+
+        // Set active card based on saved theme
+        const activeCard = document.querySelector(`[data-theme="${savedTheme}"]`);
+        if (activeCard) {
+            activeCard.classList.add('active');
+        }
+
+        // Apply the theme to body
+        this.setTheme(savedTheme);
+    }
+
+    applySelectedTheme() {
+        const activeCard = document.querySelector('.theme-card.active');
+        if (!activeCard) return;
+
+        const selectedTheme = activeCard.dataset.theme;
+
+        // Save theme to localStorage
+        localStorage.setItem('chessGameTheme', selectedTheme);
+
+        // Apply theme
+        this.setTheme(selectedTheme);
+
+        // Close modal
+        document.getElementById('themeModal').style.display = 'none';
+
+        // Show success message
+        this.showToast(`🎨 Tema "${activeCard.querySelector('h4').textContent}" berhasil diterapkan!`, 'success');
+    }
+
+    resetToDefaultTheme() {
+        // Remove saved theme
+        localStorage.removeItem('chessGameTheme');
+
+        // Set default theme
+        this.setTheme('default');
+
+        // Update UI
+        const themeCards = document.querySelectorAll('.theme-card');
+        themeCards.forEach(card => card.classList.remove('active'));
+
+        const defaultCard = document.querySelector('[data-theme="default"]');
+        if (defaultCard) {
+            defaultCard.classList.add('active');
+        }
+
+        // Close modal
+        document.getElementById('themeModal').style.display = 'none';
+
+        // Show success message
+        this.showToast('🔄 Tema berhasil direset ke default!', 'success');
+    }
+
+    setTheme(themeName) {
+        const body = document.body;
+
+        // Remove all theme classes
+        body.classList.remove('theme-default', 'theme-forest');
+
+        // Add new theme class
+        if (themeName !== 'default') {
+            body.classList.add(`theme-${themeName}`);
+        }
+
+        console.log(`Theme applied: ${themeName}`);
+    }
+
     endGame(reason = 'checkmate') {
         clearInterval(this.timerInterval);
         this.botThinking = false;
@@ -1173,7 +1465,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         } else {
             // Check for checkmate/stalemate/draw properly according to international standards
             const gameEndResult = this.engine.checkGameEnd();
-            
+
             if (gameEndResult === 'checkmate') {
                 // Checkmate - opponent wins
                 const currentPlayer = this.engine.currentPlayer;
@@ -1186,7 +1478,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                 // Determine winner based on which king is missing
                 const whiteKing = this.engine.findKing('white');
                 const blackKing = this.engine.findKing('black');
-                
+
                 if (!whiteKing) {
                     // White king missing = Black wins
                     winnerColor = 'black';
@@ -1194,7 +1486,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     winner = 'Hitam';
                     this.logMove(`👑 RAJA PUTIH HILANG/DITANGKAP! Hitam menang otomatis sesuai aturan FIDE! 🏆`);
                 } else if (!blackKing) {
-                    // Black king missing = White wins  
+                    // Black king missing = White wins
                     winnerColor = 'white';
                     loserColor = 'black';
                     winner = 'Putih';
@@ -1207,7 +1499,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     winner = currentPlayer === 'white' ? 'Hitam' : 'Putih';
                     this.logMove(`👑 RAJA DITANGKAP! ${winner} menang otomatis! 🎉`);
                 }
-                
+
                 this.turnIndicator.textContent = `🏆 ${winner} MENANG - Raja Lawan Ditangkap!`;
             } else if (gameEndResult === 'stalemate') {
                 // Stalemate - draw
@@ -1311,11 +1603,11 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
 
             // PERBAIKAN: Gunakan deteksi tournament selesai yang konsisten
             const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
-            
+
             // Show play again prompt for all cases
             setTimeout(() => {
                 this.showPlayAgainPrompt();
-                
+
                 // HAPUS auto endTournament dari sini - biar di showPlayAgainPrompt saja
                 // if (isTournamentComplete) {
                 //     this.endTournament();
@@ -1343,18 +1635,18 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
 
         let promptMessage = '';
         let buttonsHtml = '';
-        
+
         if (this.engine.gameMode === 'bot-vs-bot') {
             // PERBAIKAN: Gunakan logika yang lebih ketat untuk deteksi tournament selesai
             const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
             const currentScore = `Alpha ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta (Seri: ${this.tournamentSettings.drawCount})`;
-            
+
             console.log('Tournament Status Check:', {
                 currentRound: this.tournamentSettings.currentRound,
                 totalRounds: this.tournamentSettings.totalRounds,
                 isTournamentComplete: isTournamentComplete
             });
-            
+
             if (!isTournamentComplete) {
                 // Masih ada round berikutnya - tampilkan info round yang akan datang
                 promptMessage = `
@@ -1369,7 +1661,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                         </div>
                     </div>
                 `;
-                
+
                 buttonsHtml = `
                     <div class="play-again-buttons tournament-continue">
                         <button id="playAgainYes" class="btn-primary next-round-btn">🎮 Lanjut Round ${this.tournamentSettings.currentRound + 1}</button>
@@ -1382,10 +1674,10 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                 const whiteWins = this.tournamentSettings.roundWins.white;
                 const blackWins = this.tournamentSettings.roundWins.black;
                 const draws = this.tournamentSettings.drawCount;
-                
+
                 let championText = '';
                 let championIcon = '';
-                
+
                 if (whiteWins > blackWins) {
                     championText = `Alpha-AI Juara Tournament!`;
                     championIcon = '🏆👑';
@@ -1396,7 +1688,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     championText = 'Tournament Berakhir Seri!';
                     championIcon = '🤝✨';
                 }
-                
+
                 // Tambahan untuk tournament final yang lebih dramatis dan akurat
                 let finalTitle = '';
                 if (this.tournamentSettings.totalRounds === 1) {
@@ -1408,7 +1700,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                 } else {
                     finalTitle = `👑 Ultimate Championship ${this.tournamentSettings.totalRounds} Round - FINAL!`;
                 }
-                
+
                 promptMessage = `
                     <div class="tournament-final-complete">
                         <h2>${finalTitle}</h2>
@@ -1425,7 +1717,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                         </div>
                     </div>
                 `;
-                
+
                 buttonsHtml = `
                     <div class="play-again-buttons tournament-final">
                         <button id="playAgainYes" class="btn-primary new-tournament-btn">🎮 Tournament Baru</button>
@@ -1437,7 +1729,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         } else if (this.engine.gameMode === 'player-vs-bot') {
             // Player vs Bot mode - bisa juga ada tournament
             const hasNextRound = this.tournamentSettings.currentRound < this.tournamentSettings.totalRounds;
-            
+
             if (hasNextRound) {
                 // Player vs Bot masih ada round
                 promptMessage = `
@@ -1447,7 +1739,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                         <small>Sisa ${this.tournamentSettings.totalRounds - this.tournamentSettings.currentRound} round lagi!</small>
                     </div>
                 `;
-                
+
                 buttonsHtml = `
                     <div class="play-again-buttons player-continue">
                         <button id="playAgainYes" class="btn-primary">🎮 Lanjut Round ${this.tournamentSettings.currentRound + 1}</button>
@@ -1462,7 +1754,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                         <p>🎉 Terima kasih sudah bermain!</p>
                     </div>
                 `;
-                
+
                 buttonsHtml = `
                     <div class="play-again-buttons player-final">
                         <button id="playAgainYes" class="btn-primary">🎮 Main Lagi</button>
@@ -1478,7 +1770,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     <p>Terima kasih sudah bermain!</p>
                 </div>
             `;
-            
+
             buttonsHtml = `
                 <div class="play-again-buttons single-game">
                     <button id="playAgainYes" class="btn-primary">🔄 Main Lagi</button>
@@ -1503,10 +1795,10 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         if (playAgainYes) {
             playAgainYes.addEventListener('click', () => {
                 overlay.remove();
-                
+
                 // PERBAIKAN: Gunakan deteksi tournament selesai yang sama
                 const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
-                
+
                 if (this.engine.gameMode === 'bot-vs-bot' && !isTournamentComplete) {
                     console.log('Starting next round:', this.tournamentSettings.currentRound + 1);
                     this.startNewRound();
@@ -1543,7 +1835,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         overlay.className = 'victory-overlay';
 
         const content = document.createElement('div');
-        content.className = `victory-content ${this.engine.gameMode}`;
+        content.className = 'victory-content tournament';
 
         let titleText, subtitleText, titleClass;
 
@@ -1554,7 +1846,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         } else {
             if (this.engine.gameMode === 'bot-vs-bot') {
                 const difficultyIcons = {
-                    'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀', 
+                    'noob': '🤪', 'easy': '🤠', 'medium': '⚡', 'hard': '💀',
                     'expert': '🏆', 'master': '👑', 'grandmaster': '🔥'
                 };
 
@@ -1645,7 +1937,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         // Get history data
         const historyList = document.getElementById('roundHistoryList');
         const historyEntries = historyList ? historyList.children : [];
-        
+
         let historyContent = '';
         if (historyEntries.length > 0) {
             historyContent = '<div class="history-entries">';
@@ -1784,6 +2076,167 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
     }
 
     setupEventListeners() {
+        // Welcome screen buttons
+        const updateInfoBtn = document.getElementById('updateInfoBtn');
+        const updateInfoModal = document.getElementById('updateInfoModal');
+        const updateCloseBtn = document.querySelector('.update-close');
+        const themeBtn = document.getElementById('themeBtn');
+        const themeModal = document.getElementById('themeModal');
+        const themeCloseBtn = document.querySelector('.theme-close');
+        const myDeveloperBtn = document.getElementById('myDeveloperBtn');
+        const myDeveloperModal = document.getElementById('myDeveloperModal');
+        const developerCloseBtn = document.querySelector('.developer-close');
+        const developerCloseBtnFooter = document.querySelector('.developer-close-btn');
+
+        if (updateInfoBtn && updateInfoModal) {
+            updateInfoBtn.addEventListener('click', () => {
+                updateInfoModal.style.display = 'block';
+            });
+        }
+
+        if (updateCloseBtn && updateInfoModal) {
+            updateCloseBtn.addEventListener('click', () => {
+                updateInfoModal.style.display = 'none';
+            });
+        }
+
+        // Theme modal functionality
+        if (themeBtn && themeModal) {
+            themeBtn.addEventListener('click', () => {
+                themeModal.style.display = 'block';
+                this.loadSavedTheme();
+            });
+        }
+
+        if (themeCloseBtn && themeModal) {
+            themeCloseBtn.addEventListener('click', () => {
+                themeModal.style.display = 'none';
+            });
+        }
+
+        // Theme selection functionality
+        const themeCards = document.querySelectorAll('.theme-card');
+        const applyThemeBtn = document.getElementById('applyTheme');
+        const resetThemeBtn = document.getElementById('resetTheme');
+
+        themeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                themeCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
+
+        if (applyThemeBtn) {
+            applyThemeBtn.addEventListener('click', () => {
+                this.applySelectedTheme();
+            });
+        }
+
+        if (resetThemeBtn) {
+            resetThemeBtn.addEventListener('click', () => {
+                this.resetToDefaultTheme();
+            });
+        }
+
+        // Close theme modal when clicking outside
+        if (themeModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === themeModal) {
+                    themeModal.style.display = 'none';
+                }
+            });
+        }
+
+        // My Developer modal functionality
+        if (myDeveloperBtn && myDeveloperModal) {
+            myDeveloperBtn.addEventListener('click', () => {
+                myDeveloperModal.style.display = 'block';
+                // Animate skill bars after modal opens
+                setTimeout(() => {
+                    this.animateSkillBars();
+                }, 300);
+            });
+        }
+
+        // Uptime modal functionality
+        const uptimeBtn = document.getElementById('uptimeBtn');
+        const uptimeModal = document.getElementById('uptimeModal');
+        const uptimeCloseBtn = document.querySelector('.uptime-close');
+        const uptimeCloseBtnFooter = document.querySelector('.uptime-close-btn');
+
+        if (uptimeBtn && uptimeModal) {
+            uptimeBtn.addEventListener('click', () => {
+                this.showUptimeModal();
+            });
+        }
+
+        if (uptimeCloseBtn && uptimeModal) {
+            uptimeCloseBtn.addEventListener('click', () => {
+                uptimeModal.style.display = 'none';
+            });
+        }
+
+        if (uptimeCloseBtnFooter && uptimeModal) {
+            uptimeCloseBtnFooter.addEventListener('click', () => {
+                uptimeModal.style.display = 'none';
+            });
+        }
+
+        // Close uptime modal when clicking outside
+        if (uptimeModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === uptimeModal) {
+                    uptimeModal.style.display = 'none';
+                    if (this.uptimeInterval) {
+                        clearInterval(this.uptimeInterval);
+                    }
+                }
+            });
+        }
+
+        // System info refresh button
+        const refreshSystemInfoBtn = document.getElementById('refreshSystemInfo');
+        if (refreshSystemInfoBtn) {
+            refreshSystemInfoBtn.addEventListener('click', () => {
+                this.updateUptimeInfo();
+                // Visual feedback
+                refreshSystemInfoBtn.textContent = '✅ Updated!';
+                setTimeout(() => {
+                    refreshSystemInfoBtn.textContent = '🔄 Refresh';
+                }, 1500);
+            });
+        }
+
+        if (developerCloseBtn && myDeveloperModal) {
+            developerCloseBtn.addEventListener('click', () => {
+                myDeveloperModal.style.display = 'none';
+            });
+        }
+
+        if (developerCloseBtnFooter && myDeveloperModal) {
+            developerCloseBtnFooter.addEventListener('click', () => {
+                myDeveloperModal.style.display = 'none';
+            });
+        }
+
+        // Close developer modal when clicking outside
+        if (myDeveloperModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === myDeveloperModal) {
+                    myDeveloperModal.style.display = 'none';
+                }
+            });
+        }
+
+        // Close update modal when clicking outside
+        if (updateInfoModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === updateInfoModal) {
+                    updateInfoModal.style.display = 'none';
+                }
+            });
+        }
+
         // Settings modal
         const settingsBtn = document.getElementById('settingsBtn');
         const settingsModal = document.getElementById('settingsModal');
@@ -1898,7 +2351,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
     // Method untuk batch UI updates dan mengurangi reflow
     batchUIUpdate(updateFunction) {
         if (this.isUIBusy) return;
-        
+
         this.isUIBusy = true;
         requestAnimationFrame(() => {
             updateFunction();
@@ -2021,7 +2474,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             console.log(`📊 Current captures for ${capturePlayer}:`, this.gameStats[capturePlayer].captured);
             console.log(`💰 Total value for ${capturePlayer}:`, this.gameStats[capturePlayer].totalValue);
 
-            // Always update inline stats immediately after capture
+            // Always update inline stats after capture
             this.updateInlineStats();
 
             // Force update display even if statistics are hidden
@@ -2150,10 +2603,10 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         if (winner) {
             const loserColor = winner.includes('Alpha') ? 'black' : 'white';
             const winnerColor = winner.includes('Alpha') ? 'white' : 'black';
-            
+
             // Analisis penyebab berdasarkan game end result
             const gameEndResult = this.engine.checkGameEnd();
-            
+
             if (gameEndResult === 'king_captured') {
                 gameEndReason = '👑 Raja Ditangkap - Kemenangan Langsung';
             } else if (gameEndResult === 'checkmate') {
@@ -2335,7 +2788,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             this.tournamentSettings.drawCount++;
         }
 
-        // PERBAIKAN: Gunakan logika yang lebih ketat untuk deteksi tournament selesai
+        // PERBAIKAN: Gunakan deteksi tournament selesai yang lebih ketat
         const isTournamentComplete = this.tournamentSettings.currentRound >= this.tournamentSettings.totalRounds;
 
         console.log('Tournament After Game Check:', {
@@ -2356,11 +2809,11 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             this.logMove(`🏁 ═══ TOURNAMENT ${this.tournamentSettings.totalRounds} ROUND FINAL ═══`);
             this.logMove(`🎊 TOURNAMENT RESMI SELESAI!`);
             this.logMove(`📊 HASIL FINAL: Alpha-Bot ${this.tournamentSettings.roundWins.white} - ${this.tournamentSettings.roundWins.black} Beta-Bot (Seri: ${this.tournamentSettings.drawCount})`);
-            
+
             // Tentukan juara
             const whiteWins = this.tournamentSettings.roundWins.white;
             const blackWins = this.tournamentSettings.roundWins.black;
-            
+
             if (whiteWins > blackWins) {
                 this.logMove(`👑 JUARA TOURNAMENT: Alpha-Bot! 🏆`);
             } else if (blackWins > whiteWins) {
@@ -2368,7 +2821,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             } else {
                 this.logMove(`🤝 TOURNAMENT BERAKHIR SERI - TIE GAME! 🤝`);
             }
-            
+
             this.logMove(`🏁 ═══════════════════════════════════`);
         }
 
@@ -2398,11 +2851,21 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
 
     getDifficultyLevel(difficulty) {
         const levels = {
-            'noob': '1', 'easy': '2', 'medium': '3', 'hard': '4', 
+            'noob': '1', 'easy': '2', 'medium': '3', 'hard': '4',
             'expert': '5', 'master': '6', 'grandmaster': '7'
         };
         return levels[difficulty] || '3';
     }
+
+    animateSkillBars() {
+        const skillBars = document.querySelectorAll('.skill-progress');
+        skillBars.forEach(bar => {
+            const skillValue = bar.getAttribute('data-skill');
+            bar.style.width = skillValue + '%';
+        });
+    }
+
+
 
     endTournament() {
         const whiteWins = this.tournamentSettings.roundWins.white;
@@ -2454,7 +2917,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
 function toggleGuide(header) {
     const content = header.nextElementSibling;
     const toggle = header.querySelector('.guide-toggle');
-    
+
     if (content.classList.contains('collapsed')) {
         content.classList.remove('collapsed');
         header.classList.add('expanded');
@@ -2471,7 +2934,7 @@ function toggleSpeedGuide(header) {
     const container = header.parentElement;
     const content = container.querySelector('.speed-cards-grid');
     const toggle = header.querySelector('.speed-guide-toggle');
-    
+
     if (content.style.display === 'none' || content.style.display === '') {
         content.style.display = 'grid';
         header.classList.add('expanded');

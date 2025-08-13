@@ -48,8 +48,26 @@
     <!-- Welcome Screen -->
     <div id="welcomeScreen" class="welcome-screen">
         <div class="welcome-content">
+            <!-- Header dengan tombol pengaturan dan info update -->
+            <div class="welcome-header">
+                <div class="header-buttons">
+                    <button id="themeBtn" class="welcome-btn theme-btn">🎨 TEMA</button>
+                    <button id="updateInfoBtn" class="welcome-btn update-info-btn">🔔 Info Update</button>
+                    <button id="uptimeBtn" class="welcome-btn uptime-btn">📊 SYSTEM INFO</button>
+                    <button id="myDeveloperBtn" class="welcome-btn developer-btn">👨‍💻 MY DEVELOPER</button>
+                </div>
+            </div>
+
             <h1 class="welcome-title">🤠 GAMES CATUR 🤠</h1>
-            <p class="welcome-subtitle">Selamat datang di permainan catur bergaya koboi!</p>
+            <p class="welcome-subtitle">Selamat datang di permainan catur bergaya koboi yang seru dan menantang!</p>
+
+            <!-- Badge fitur -->
+            <div class="feature-badges">
+                <span class="badge">🤖 AI Pintar</span>
+                <span class="badge">🏆 Tournament</span>
+                <span class="badge">📱 Mobile Friendly</span>
+                <span class="badge">⚡ Real-time</span>
+            </div>
 
             <div class="game-mode-selection">
                 <h2>Pilih Mode Permainan:</h2>
@@ -211,7 +229,7 @@
                 </div>
 
                 <div class="setting-row">
-                    
+
                     <div class="speed-selection-container">
                         <div class="speed-guide-header" onclick="toggleSpeedGuide(this)">
                             <h5 class="speed-selection-title">⚡ Pilih Kecepatan Game</h5>
@@ -279,6 +297,422 @@
             </div>
 
             <button id="startGameFromWelcome" class="start-game-btn" disabled>🎮 MULAI PERMAINAN</button>
+        </div>
+    </div>
+
+    <!-- Update Info Modal -->
+    <div id="updateInfoModal" class="modal">
+        <div class="modal-content update-modal">
+            <span class="close update-close">&times;</span>
+            <h2>🔔 Info Update & Fitur Terbaru</h2>
+
+            <div class="update-section">
+                <h3>🎉 Update Terbaru v2.1.0</h3>
+                <div class="update-item">
+                    <span class="update-icon">✨</span>
+                    <div class="update-details">
+                        <h4>Desain Welcome Screen Baru</h4>
+                        <p>Tampilan awal yang lebih menarik dengan animasi dan badge fitur</p>
+                    </div>
+                </div>
+
+                <div class="update-item">
+                    <span class="update-icon">🤖</span>
+                    <div class="update-details">
+                        <h4>AI Engine yang Diperbaharui</h4>
+                        <p>7 level kesulitan dari Pemula hingga Grandmaster dengan strategi yang lebih cerdas</p>
+                    </div>
+                </div>
+
+                <div class="update-item">
+                    <span class="update-icon">🏆</span>
+                    <div class="update-details">
+                        <h4>Sistem Tournament</h4>
+                        <p>Mode tournament 1-5 round untuk Bot vs Bot dan Player vs Bot</p>
+                    </div>
+                </div>
+
+                <div class="update-item">
+                    <span class="update-icon">📊</span>
+                    <div class="update-details">
+                        <h4>Statistik Real-time</h4>
+                        <p>Tracking tangkapan bidak, poin, dan riwayat pertandingan secara detail</p>
+                    </div>
+                </div>
+
+                <div class="update-item">
+                    <span class="update-icon">⚡</span>
+                    <div class="update-details">
+                        <h4>Kontrol Kecepatan Game</h4>
+                        <p>6 pilihan kecepatan dari Ultra Kilat (0.5s) hingga Kura-kura (3.0s)</p>
+                    </div>
+                </div>
+
+                <div class="update-item">
+                    <span class="update-icon">📱</span>
+                    <div class="update-details">
+                        <h4>Mobile Optimization</h4>
+                        <p>Pengalaman bermain yang optimal di semua perangkat mobile dan tablet</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="developer-info">
+                <h3>👨‍💻 Info Developer</h3>
+                <p>Game ini dikembangkan dengan penuh passion untuk memberikan pengalaman catur terbaik. Feedback dan saran Anda sangat berharga untuk pengembangan selanjutnya!</p>
+                <div class="contact-dev">
+                    <a href="https://wa.me/6289688206739" target="_blank" class="dev-contact-btn">
+                        💬 Hubungi Developer
+                    </a>
+                </div>
+            </div>
+
+            <div class="upcoming-features">
+                <h3>🚀 Fitur yang Akan Datang</h3>
+                <ul class="feature-list">
+                    <li>🎨 Tema board yang dapat disesuaikan</li>
+                    <li>🔊 Efek suara dan musik latar</li>
+                    <li>📈 Analisis pertandingan dengan AI</li>
+                    <li>🌐 Mode multiplayer online</li>
+                    <li>🏅 Sistem ranking dan achievement</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Developer Modal -->
+    <div id="myDeveloperModal" class="modal">
+        <div class="modal-content developer-modal">
+            <span class="close developer-close">&times;</span>
+
+            <!-- Developer Profile Header -->
+            <div class="developer-profile-header">
+                <img src="https://i.postimg.cc/cCb1nfP9/84xbcz.jpg" alt="Developer Avatar" class="developer-avatar">
+                <h2>👨‍💻 Meet The Developer</h2>
+                <div class="developer-info">
+                    <h3 class="developer-name">🤠 Bang Wily</h3>
+                    <div class="developer-details">
+                        <p class="info-item"><span class="info-icon">🎂</span> <strong>Umur:</strong> 25 tahun</p>
+                        <p class="info-item"><span class="info-icon">📍</span> <strong>Tinggal:</strong> Bandung, Jawa Barat</p>
+                        <p class="info-item"><span class="info-icon">💻</span> <strong>Hobi:</strong> Coding & Programming</p>
+                        <p class="info-item"><span class="info-icon">🎯</span> <strong>Spesialisasi:</strong> Full-Stack Web Developer</p>
+                    </div>
+                </div>
+                <p class="developer-tagline">Passionate Full-Stack Developer & Chess Enthusiast</p>
+            </div>
+
+            <!-- Skills Section -->
+            <div class="developer-skills">
+                <h3>🛠️ Technical Skills</h3>
+                <div class="skills-grid">
+                    <div class="skill-item">
+                        <div class="skill-name">JavaScript</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="92"></div>
+                        </div>
+                        <span class="skill-percent">92%</span>
+                    </div>
+                    <div class="skill-item">
+                        <div class="skill-name">CSS/SCSS</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="88"></div>
+                        </div>
+                        <span class="skill-percent">88%</span>
+                    </div>
+                    <div class="skill-item">
+                        <div class="skill-name">HTML5</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="95"></div>
+                        </div>
+                        <span class="skill-percent">95%</span>
+                    </div>
+                    <div class="skill-item">
+                        <div class="skill-name">Node.js</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="85"></div>
+                        </div>
+                        <span class="skill-percent">85%</span>
+                    </div>
+                    <div class="skill-item">
+                        <div class="skill-name">React</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="78"></div>
+                        </div>
+                        <span class="skill-percent">78%</span>
+                    </div>
+                    <div class="skill-item">
+                        <div class="skill-name">Game Development</div>
+                        <div class="skill-bar">
+                            <div class="skill-progress" data-skill="82"></div>
+                        </div>
+                        <span class="skill-percent">82%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Developer -->
+            <div class="developer-about">
+                <h3>💫 About Me</h3>
+                <p>Seorang developer berpengalaman yang passionate dalam menciptakan aplikasi web interaktif dan game yang menarik. Dengan keahlian mendalam dalam JavaScript dan teknologi web modern, saya selalu berusaha memberikan pengalaman pengguna terbaik melalui kode yang bersih dan design yang intuitif.</p>
+                <p>Selain coding, saya juga gemar bermain catur dan mengeksplorasi strategi permainan, yang menginspirasi pembuatan game catur ini dengan AI yang cerdas dan fitur-fitur canggih.</p>
+            </div>
+
+            <!-- Social Media -->
+            <div class="developer-social">
+                <h3>🌐 Connect With Me</h3>
+                <div class="social-links">
+                    <a href="https://wa.me/6289688206739" target="_blank" class="social-link whatsapp">
+                        <span class="social-icon">💬</span>
+                        <div class="social-info">
+                            <div class="social-title">WhatsApp</div>
+                            <div class="social-desc">Chat langsung dengan developer</div>
+                        </div>
+                    </a>
+
+                    <a href="https://whatsapp.com/channel/0029VaiyhS37IUYSuDJoJj1L" target="_blank" class="social-link channel">
+                        <span class="social-icon">📺</span>
+                        <div class="social-info">
+                            <div class="social-title">Anime Channel</div>
+                            <div class="social-desc">Info seputar anime & entertainment</div>
+                        </div>
+                    </a>
+
+                    <a href="https://youtube.com/@ukosamasomoni1956" target="_blank" class="social-link youtube">
+                        <span class="social-icon">🎥</span>
+                        <div class="social-info">
+                            <div class="social-title">YouTube</div>
+                            <div class="social-desc">Tutorial & konten menarik</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Special Message -->
+            <div class="developer-message">
+                <h3>✨ Special Message</h3>
+                <div class="message-content">
+                    <p><strong>🎯 "Coding is not just about writing code, it's about solving problems and creating experiences that matter."</strong></p>
+                    <p>Terima kasih telah menggunakan aplikasi catur ini! Setiap line code ditulis dengan dedikasi untuk memberikan pengalaman bermain terbaik. Jika Anda memiliki saran, feedback, atau ingin berkolaborasi dalam project menarik, jangan ragu untuk menghubungi saya.</p>
+                    <div class="message-highlight">
+                        <span class="highlight-icon">🚀</span>
+                        <span>Always learning, always creating, always improving!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projects Showcase -->
+            <div class="developer-projects">
+                <h3>🎮 Featured Projects</h3>
+                <div class="projects-grid">
+                    <div class="project-card">
+                        <div class="project-icon">♟️</div>
+                        <div class="project-name">Chess AI Game</div>
+                        <div class="project-tech">JavaScript, CSS3, AI</div>
+                    </div>
+                    <div class="project-card">
+                        <div class="project-icon">🌐</div>
+                        <div class="project-name">Web Applications</div>
+                        <div class="project-tech">React, Node.js, MongoDB</div>
+                    </div>
+                    <div class="project-card">
+                        <div class="project-icon">🎯</div>
+                        <div class="project-name">Game Development</div>
+                        <div class="project-tech">HTML5 Canvas, WebGL</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="developer-footer">
+                <button class="developer-close-btn">✅ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Info Modal -->
+    <div id="uptimeModal" class="modal">
+        <div class="modal-content uptime-modal">
+            <span class="close uptime-close">&times;</span>
+            <h2>🖥️ System Information & Performance</h2>
+
+            <!-- System Overview -->
+            <div class="system-overview">
+                <h3>⚙️ Hardware Specifications</h3>
+                <div class="overview-grid">
+                    <div class="overview-card">
+                        <div class="card-icon">🧠</div>
+                        <div class="card-info">
+                            <div class="card-title">Processor</div>
+                            <div id="cpuModel" class="card-value">AMD Ryzen 9 7950X</div>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon">💾</div>
+                        <div class="card-info">
+                            <div class="card-title">Total RAM</div>
+                            <div id="totalRam" class="card-value">32 GB DDR5</div>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-info">
+                            <div class="card-title">CPU Cores</div>
+                            <div id="cpuCores" class="card-value">16 Cores / 32 Threads</div>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon">🔧</div>
+                        <div class="card-info">
+                            <div class="card-title">Architecture</div>
+                            <div id="cpuArch" class="card-value">x64 (64-bit)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Monitoring -->
+            <div class="performance-monitoring">
+                <h3>📊 Real-time Performance</h3>
+                <div class="perf-grid">
+                    <div class="perf-card">
+                        <h4>🧠 CPU Performance</h4>
+                        <div class="chart-item">
+                            <span class="resource-name">CPU Usage:</span>
+                            <div class="bar-container">
+                                <div class="usage-bar-track">
+                                    <div id="cpuUsageBar" class="usage-bar"></div>
+                                </div>
+                                <span id="cpuUsageValue" class="usage-value">0%</span>
+                            </div>
+                        </div>
+                        <div class="chart-item">
+                            <span class="resource-name">CPU Frequency:</span>
+                            <span id="cpuFrequency" class="info-value">3.6 GHz</span>
+                        </div>
+                        <div class="chart-item">
+                            <span class="resource-name">CPU Temperature:</span>
+                            <span id="cpuTemp" class="info-value">45°C</span>
+                        </div>
+                    </div>
+
+                    <div class="perf-card">
+                        <h4>💾 Memory Usage</h4>
+                        <div class="chart-item">
+                            <span class="resource-name">RAM Usage:</span>
+                            <div class="bar-container">
+                                <div class="usage-bar-track">
+                                    <div id="ramUsageBar" class="usage-bar"></div>
+                                </div>
+                                <span id="ramUsageValue" class="usage-value">0%</span>
+                            </div>
+                        </div>
+                        <div class="chart-item">
+                            <span class="resource-name">Used Memory:</span>
+                            <span id="usedMemory" class="info-value">8.2 GB</span>
+                        </div>
+                        <div class="chart-item">
+                            <span class="resource-name">Available:</span>
+                            <span id="availableMemory" class="info-value">23.8 GB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="system-status">
+                <h3>⏱️ System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">🕐 Server Uptime:</span>
+                        <span id="serverUptime" class="status-value">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">🌐 Network Status:</span>
+                        <span id="networkStatus" class="status-value">Online</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">💿 Storage Type:</span>
+                        <span id="storageType" class="status-value">NVMe SSD</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">🖥️ Operating System:</span>
+                        <span id="operatingSystem" class="status-value">Linux Ubuntu 22.04</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Health Indicators -->
+            <div class="health-indicators">
+                <h3>❤️ System Health</h3>
+                <div class="health-grid">
+                    <div class="health-card healthy">
+                        <div class="health-icon">✅</div>
+                        <div class="health-info">
+                            <div class="health-title">CPU Health</div>
+                            <div class="health-status">Excellent</div>
+                        </div>
+                    </div>
+                    <div class="health-card healthy">
+                        <div class="health-icon">✅</div>
+                        <div class="health-info">
+                            <div class="health-title">Memory Health</div>
+                            <div class="health-status">Good</div>
+                        </div>
+                    </div>
+                    <div class="health-card healthy">
+                        <div class="health-icon">✅</div>
+                        <div class="health-info">
+                            <div class="health-title">Network Health</div>
+                            <div class="health-status">Stable</div>
+                        </div>
+                    </div>
+                    <div class="health-card healthy">
+                        <div class="health-icon">✅</div>
+                        <div class="health-info">
+                            <div class="health-title">Storage Health</div>
+                            <div class="health-status">Optimal</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="uptime-footer">
+                <div class="uptime-refresh">
+                    <small class="last-updated">Last updated: <span id="lastUpdated">Now</span></small>
+                    <button id="refreshSystemInfo" class="refresh-btn">🔄 Refresh</button>
+                </div>
+                <button class="uptime-close-btn">✅ Close System Info</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Modal -->
+    <div id="themeModal" class="modal">
+        <div class="modal-content theme-modal">
+            <span class="close theme-close">&times;</span>
+            <h2>🎨 Pilih Tema Background</h2>
+            
+            <div class="theme-selection">
+                <h3>🖼️ Tema Tersedia:</h3>
+                
+                <div class="theme-grid">
+                    <div class="theme-card active" data-theme="default">
+                        <div class="theme-preview default-preview"></div>
+                        <h4>🤠 Default Koboy</h4>
+                        <p>Tema asli bergaya western</p>
+                    </div>
+                    
+                    <div class="theme-card" data-theme="forest">
+                        <div class="theme-preview forest-preview"></div>
+                        <h4>🌸 Anime 1</h4>
+                        <p>Tema anime dengan pemandangan indah</p>
+                    </div>
+                </div>
+                
+                <div class="theme-controls">
+                    <button id="applyTheme" class="btn-primary theme-apply-btn">✅ Terapkan Tema</button>
+                    <button id="resetTheme" class="btn-secondary theme-reset-btn">🔄 Reset ke Default</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -377,7 +811,7 @@
         </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Footer - tampil di semua halaman -->
     <footer class="footer">
         <p>Powered by <a href="https://wa.me/6289688206739" target="_blank" rel="noopener noreferrer">Bang Wily</a></p>
     </footer>

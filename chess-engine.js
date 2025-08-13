@@ -227,9 +227,22 @@ class ChessEngine {
         return true;
     }
 
-    makeMove(fromRow, fromCol, toRow, toCol) {
+    makeMove(fromRow, fromCol, toRow, toCol, promotionPiece = 'queen') {
         const piece = this.board[fromRow][fromCol];
         const capturedPiece = this.board[toRow][toCol];
+
+        // Check for pawn promotion
+        let finalPiece = piece;
+        let isPromotion = false;
+        
+        if (piece.type === 'pawn') {
+            // White pawn reaching row 0 (top) or black pawn reaching row 7 (bottom)
+            if ((piece.color === 'white' && toRow === 0) || 
+                (piece.color === 'black' && toRow === 7)) {
+                finalPiece = { type: promotionPiece, color: piece.color };
+                isPromotion = true;
+            }
+        }
 
         // Record move
         const move = {
@@ -237,13 +250,14 @@ class ChessEngine {
             to: { row: toRow, col: toCol },
             piece: piece,
             captured: capturedPiece,
-            player: this.currentPlayer
+            player: this.currentPlayer,
+            promotion: isPromotion ? promotionPiece : null
         };
 
         this.gameHistory.push(move);
 
-        // Make the move
-        this.board[toRow][toCol] = piece;
+        // Make the move with promoted piece if applicable
+        this.board[toRow][toCol] = finalPiece;
         this.board[fromRow][fromCol] = null;
 
         // Switch players
@@ -257,7 +271,7 @@ class ChessEngine {
 
         const lastMove = this.gameHistory.pop();
 
-        // Restore pieces
+        // Restore original pawn if it was a promotion
         this.board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
         this.board[lastMove.to.row][lastMove.to.col] = lastMove.captured;
 
@@ -378,7 +392,8 @@ class ChessEngine {
         // Implementasi blunder untuk membuat bot lebih realistis
         if (Math.random() < settings.blunderChance) {
             console.log(`Bot ${this.currentPlayer} melakukan blunder! (${useDifficulty})`);
-            return moves[Math.floor(Math.random() * moves.length)];
+            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+            return this.addPromotionToMove(randomMove);
         }
 
         let selectedMove = null;
@@ -409,7 +424,24 @@ class ChessEngine {
                 selectedMove = this.getMediumBotMove(moves);
         }
 
-        return selectedMove;
+        return this.addPromotionToMove(selectedMove);
+    }
+
+    addPromotionToMove(move) {
+        if (!move) return move;
+        
+        // Check if this move would result in pawn promotion
+        const piece = this.board[move.from.row][move.from.col];
+        if (piece && piece.type === 'pawn') {
+            const toRow = move.to.row;
+            if ((piece.color === 'white' && toRow === 0) || 
+                (piece.color === 'black' && toRow === 7)) {
+                // Bot always promotes to queen (strongest piece)
+                move.promotion = 'queen';
+            }
+        }
+        
+        return move;
     }
 
     getNoobBotMove(moves) {
