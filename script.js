@@ -30,13 +30,29 @@ class ChessGame {
                 captured: { pawn: 0, rook: 0, knight: 0, bishop: 0, queen: 0 },
                 totalValue: 0,
                 wins: 0,
-                losses: 0
+                losses: 0,
+                moveQuality: {
+                    brilliant: 0,
+                    great: 0,
+                    best: 0,
+                    mistake: 0,
+                    miss: 0,
+                    blunder: 0
+                }
             },
             black: {
                 captured: { pawn: 0, rook: 0, knight: 0, bishop: 0, queen: 0 },
                 totalValue: 0,
                 wins: 0,
-                losses: 0
+                losses: 0,
+                moveQuality: {
+                    brilliant: 0,
+                    great: 0,
+                    best: 0,
+                    mistake: 0,
+                    miss: 0,
+                    blunder: 0
+                }
             }
         };
 
@@ -75,6 +91,11 @@ class ChessGame {
         // Update difficulty options untuk bot vs bot yang lebih balanced
         this.updateDifficultyOptions();
 
+        // Initialize engine speed
+        if (this.engine) {
+            this.engine.botSpeed = 1500; // 1.5 second default
+        }
+
         // Initialize speed guide as collapsed by default
         const speedGuideContent = document.querySelector('.speed-guide-content');
         if (speedGuideContent) {
@@ -87,11 +108,6 @@ class ChessGame {
         const speedValueDisplay = document.getElementById('gameSpeedValue');
 
         if (speedCards.length > 0 && speedInput && speedValueDisplay) {
-            // Initialize engine speed
-            if (this.engine) {
-                this.engine.botSpeed = 1500; // 1.5 second default
-            }
-
             // Handle speed card selection
             speedCards.forEach(card => {
                 card.addEventListener('click', () => {
@@ -188,12 +204,20 @@ class ChessGame {
                 if (this.selectedGameMode === 'player-vs-bot') {
                     difficultySelection.style.display = 'block';
                     botVsBotSettings.style.display = 'none';
+                    document.getElementById('tutorialSettings').style.display = 'none';
                     this.selectedDifficulty = document.getElementById('playerDifficulty').value;
                     startBtn.disabled = false;
                 } else if (this.selectedGameMode === 'bot-vs-bot') {
                     difficultySelection.style.display = 'none';
                     botVsBotSettings.style.display = 'block';
+                    document.getElementById('tutorialSettings').style.display = 'none';
                     this.selectedDifficulty = 'medium'; // Default for bot vs bot
+                    startBtn.disabled = false;
+                } else if (this.selectedGameMode === 'tutorial') {
+                    difficultySelection.style.display = 'none';
+                    botVsBotSettings.style.display = 'none';
+                    document.getElementById('tutorialSettings').style.display = 'block';
+                    this.selectedDifficulty = 'easy'; // Tutorial uses easy AI
                     startBtn.disabled = false;
                 }
             });
@@ -252,6 +276,8 @@ class ChessGame {
                 const selectedRounds = parseInt(document.getElementById('totalRounds').value);
                 this.tournamentSettings.totalRounds = Math.min(Math.max(selectedRounds, 1), 5); // Batasi maksimal 5 round
                 this.startGameFromWelcome();
+            } else if (this.selectedGameMode === 'tutorial') {
+                this.startTutorialMode();
             }
         });
     }
@@ -474,36 +500,15 @@ class ChessGame {
             };
         }
 
-        // Alternate who starts first for fairness
-        let shouldWhiteStart;
-
-        if (this.turnCounter.totalGames === 0) {
-            // First game - random start
-            shouldWhiteStart = Math.random() < 0.5;
-        } else {
-            // Alternate based on who started fewer times
-            if (this.turnCounter.whiteStarts < this.turnCounter.blackStarts) {
-                shouldWhiteStart = true;
-            } else if (this.turnCounter.blackStarts < this.turnCounter.whiteStarts) {
-                shouldWhiteStart = false;
-            } else {
-                // Equal - random choice
-                shouldWhiteStart = Math.random() < 0.5;
-            }
-        }
-
-        // Set starting player
-        this.engine.currentPlayer = shouldWhiteStart ? 'white' : 'black';
+        // PERBAIKAN: Selalu mulai dengan putih untuk konsistensi
+        // Set starting player selalu putih
+        this.engine.currentPlayer = 'white';
 
         // Update counters
         this.turnCounter.totalGames++;
-        if (shouldWhiteStart) {
-            this.turnCounter.whiteStarts++;
-        } else {
-            this.turnCounter.blackStarts++;
-        }
+        this.turnCounter.whiteStarts++;
 
-        console.log('Turn system:', {
+        console.log('Turn system fixed:', {
             currentGame: this.turnCounter.totalGames,
             whiteStarts: this.turnCounter.whiteStarts,
             blackStarts: this.turnCounter.blackStarts,
@@ -705,6 +710,9 @@ class ChessGame {
             this.trackCapture(move);
         }
 
+        // Evaluate move quality
+        this.evaluateMoveQuality(move);
+
         this.updateBoard();
         this.updateGameInfo();
         this.logMove(this.formatMove(move));
@@ -759,14 +767,15 @@ class ChessGame {
 
         this.botThinking = true;
 
-        // Anti-stuck timeout mechanism
+        // PERBAIKAN: Timeout yang lebih fleksibel untuk semua level
+        const baseTimeout = Math.max(this.engine.botSpeed || 1000, 1000);
         const botMoveTimeout = setTimeout(() => {
             console.error('Bot move timeout - forcing recovery');
             this.botThinking = false;
             if (!this.engine.isGameOver() && !this.isPaused) {
                 setTimeout(() => this.makeBotMove(), 100);
             }
-        }, Math.max(this.engine.botSpeed * 2, 2000)); // Max 2 seconds timeout
+        }, Math.max(baseTimeout * 3, 3000)); // Timeout lebih fleksibel
 
         let currentPlayerName;
 
@@ -794,11 +803,36 @@ class ChessGame {
                 this.engine.botWhiteDifficulty : this.engine.botBlackDifficulty;
         }
 
-        // Use actual bot speed setting dari localStorage atau engine
-        const actualSpeed = this.engine.botSpeed || 1000;
-        let thinkingTime = Math.max(50, Math.min(actualSpeed * 0.3, 500));
+        // PERBAIKAN: Bot speed yang konsisten untuk semua level
+        const actualSpeed = Math.max(this.engine.botSpeed || 1000, 500);
+        let thinkingTime;
 
-        console.log(`Bot ${currentPlayerName} thinking for ${thinkingTime}ms (speed: ${actualSpeed}ms)`);
+        // Thinking time berdasarkan difficulty
+        switch(currentDifficulty) {
+            case 'noob':
+            case 'easy':
+                thinkingTime = Math.max(actualSpeed * 0.2, 200);
+                break;
+            case 'medium':
+                thinkingTime = Math.max(actualSpeed * 0.3, 300);
+                break;
+            case 'hard':
+                thinkingTime = Math.max(actualSpeed * 0.4, 400);
+                break;
+            case 'expert':
+                thinkingTime = Math.max(actualSpeed * 0.5, 500);
+                break;
+            case 'master':
+                thinkingTime = Math.max(actualSpeed * 0.6, 600);
+                break;
+            case 'grandmaster':
+                thinkingTime = Math.max(actualSpeed * 0.7, 700);
+                break;
+            default:
+                thinkingTime = Math.max(actualSpeed * 0.3, 300);
+        }
+
+        console.log(`Bot ${currentPlayerName} (${currentDifficulty}) thinking for ${thinkingTime}ms (base speed: ${actualSpeed}ms)`);
 
         // Robust bot move execution
         const executeBotMove = () => {
@@ -813,53 +847,102 @@ class ChessGame {
                     return;
                 }
 
-                const botMove = this.engine.getBotMove(currentDifficulty);
+                // Safe bot move generation with error handling
+                let botMove = null;
+                try {
+                    botMove = this.engine.getBotMove(currentDifficulty);
+                } catch (moveError) {
+                    console.error('Error generating bot move:', moveError);
+                    // Fallback to random valid move
+                    const validMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
+                    if (validMoves.length > 0) {
+                        botMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+                    }
+                }
 
                 if (botMove && this.engine.isValidMove(botMove.from.row, botMove.from.col, botMove.to.row, botMove.to.col)) {
-                    const move = this.engine.makeMove(
-                        botMove.from.row, botMove.from.col,
-                        botMove.to.row, botMove.to.col,
-                        botMove.promotion || 'queen'
-                    );
-
-                    // Track captures
-                    if (move.captured) {
-                        this.trackCapture(move);
+                    let move = null;
+                    try {
+                        move = this.engine.makeMove(
+                            botMove.from.row, botMove.from.col,
+                            botMove.to.row, botMove.to.col,
+                            botMove.promotion || 'queen'
+                        );
+                    } catch (moveExecuteError) {
+                        console.error('Error executing move:', moveExecuteError);
+                        this.botThinking = false;
+                        return;
                     }
 
-                    // Update UI efficiently
-                    requestAnimationFrame(() => {
-                        this.updateBoard();
-                        this.updateGameInfo();
-                        this.updateInlineStats();
-                    });
+                    // Track captures safely
+                    if (move && move.captured) {
+                        try {
+                            this.trackCapture(move);
+                        } catch (captureError) {
+                            console.error('Error tracking capture:', captureError);
+                        }
+                    }
+
+                    // Evaluate move quality safely
+                    if (move) {
+                        try {
+                            this.evaluateMoveQuality(move);
+                        } catch (qualityError) {
+                            console.error('Error evaluating move quality:', qualityError);
+                        }
+                    }
+
+                    // Update UI efficiently with error handling
+                    try {
+                        requestAnimationFrame(() => {
+                            this.updateBoard();
+                            this.updateGameInfo();
+                            this.updateInlineStats();
+                        });
+                    } catch (uiError) {
+                        console.error('Error updating UI:', uiError);
+                    }
 
                     // Log every move immediately for accurate real-time tracking
-                    this.logMove(this.formatMove(move));
+                    if (move) {
+                        try {
+                            this.logMove(this.formatMove(move));
+                        } catch (logError) {
+                            console.error('Error logging move:', logError);
+                        }
+                    }
 
                     // Visual feedback for non-bot-vs-bot modes
                     if (this.engine.gameMode !== 'bot-vs-bot') {
-                        const targetSquare = this.getSquareElement(botMove.to.row, botMove.to.col);
-                        if (targetSquare) {
-                            targetSquare.classList.add('piece-moving');
-                            setTimeout(() => targetSquare.classList.remove('piece-moving'), 150);
+                        try {
+                            const targetSquare = this.getSquareElement(botMove.to.row, botMove.to.col);
+                            if (targetSquare) {
+                                targetSquare.classList.add('piece-moving');
+                                setTimeout(() => targetSquare.classList.remove('piece-moving'), 150);
+                            }
+                        } catch (visualError) {
+                            console.error('Error with visual feedback:', visualError);
                         }
                     }
 
                     this.botThinking = false;
 
                     // Check for game end after move
-                    const gameEndResult = this.engine.checkGameEnd();
-                    if (gameEndResult) {
-                        console.log(`Game ending: ${gameEndResult}`);
-                        this.endGame();
-                        return;
+                    try {
+                        const gameEndResult = this.engine.checkGameEnd();
+                        if (gameEndResult) {
+                            console.log(`Game ending: ${gameEndResult}`);
+                            this.endGame();
+                            return;
+                        }
+                    } catch (gameEndError) {
+                        console.error('Error checking game end:', gameEndError);
                     }
 
-                    // Continue game flow
+                    // Continue game flow dengan timing yang konsisten
                     if (this.engine.gameMode === 'bot-vs-bot' && !this.isPaused) {
-                        // Use actual bot speed with minimum delay
-                        const nextMoveDelay = Math.max(actualSpeed * 0.8, 100);
+                        // Use consistent delay based on bot speed
+                        const nextMoveDelay = Math.max(actualSpeed * 0.7, 300);
                         setTimeout(() => {
                             if (!this.isPaused && !this.botThinking && !this.engine.isGameOver()) {
                                 this.makeBotMove();
@@ -870,7 +953,7 @@ class ChessGame {
                             if (!this.isPaused && !this.engine.isGameOver()) {
                                 this.makeBotMove();
                             }
-                        }, Math.max(actualSpeed * 0.5, 200));
+                        }, Math.max(actualSpeed * 0.4, 250));
                     }
                 } else {
                     console.error('Invalid bot move generated:', botMove);
@@ -897,11 +980,17 @@ class ChessGame {
                 // Emergency recovery
                 setTimeout(() => {
                     if (!this.isPaused && !this.engine.isGameOver()) {
-                        const emergencyMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
-                        if (emergencyMoves.length === 0) {
+                        try {
+                            const emergencyMoves = this.engine.getAllValidMoves(this.engine.currentPlayer);
+                            if (emergencyMoves.length === 0) {
+                                this.endGame();
+                            } else {
+                                this.makeBotMove();
+                            }
+                        } catch (recoveryError) {
+                            console.error('Emergency recovery failed:', recoveryError);
+                            // Force end game if recovery fails
                             this.endGame();
-                        } else {
-                            this.makeBotMove();
                         }
                     }
                 }, 500);
@@ -925,7 +1014,13 @@ class ChessGame {
 
         let moveText = `${playerName}: ${pieceName} ${fromPos} → ${toPos}`;
 
-        if (move.captured) {
+        // Special moves
+        if (move.castling) {
+            const isKingside = move.to.col > move.from.col;
+            moveText = `${playerName}: ${isKingside ? '🏰 ROKADE KINGSIDE' : '🏰 ROKADE QUEENSIDE'}`;
+        } else if (move.enPassantCapture) {
+            moveText += ` 🎯 EN PASSANT!`;
+        } else if (move.captured) {
             const capturedName = pieceNames[move.captured.type];
             moveText += ` (menangkap ${capturedName})`;
         }
@@ -1014,7 +1109,8 @@ class ChessGame {
         if (this.timerInterval) clearInterval(this.timerInterval);
 
         this.timerInterval = setInterval(() => {
-            if (!this.isPaused && !this.botThinking) {
+            // PERBAIKAN: Timer berjalan untuk semua mode dan level
+            if (!this.isPaused && this.engine.gameStatus === 'playing') {
                 if (this.engine.currentPlayer === 'white') {
                     this.timers.white--;
                 } else {
@@ -2075,7 +2171,432 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         return totalValue;
     }
 
+    setupTutorialSystem() {
+        this.tutorialData = [
+            {
+                title: "🎓 Selamat Datang di Tutorial Catur!",
+                content: `
+                    <h3>🌟 Selamat Datang di Tutorial Catur Interaktif!</h3>
+                    <p>Tutorial ini akan mengajarkan Anda bermain catur dari dasar hingga mahir. Kita akan belajar step-by-step dengan praktik langsung.</p>
+                    <div class="tutorial-highlight">
+                        <h4>📚 Apa yang akan Anda pelajari:</h4>
+                        <ul>
+                            <li>🏁 Pengenalan papan catur dan setup bidak</li>
+                            <li>♟️ Cara bergerak setiap bidak catur</li>
+                            <li>⚡ Aturan khusus catur (rokade, en passant, promosi)</li>
+                            <li>🧠 Strategi dasar opening, middlegame, dan endgame</li>
+                            <li>🎯 Taktik catur (pin, fork, skewer)</li>
+                            <li>🎮 Latihan melawan AI bertahap</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>💡 Tips:</strong> Ikuti setiap langkah dengan seksama. Jangan ragu untuk mengulang step yang kurang jelas!
+                    </div>
+                `,
+                showBoard: false
+            },
+            {
+                title: "🏁 Mengenal Papan Catur",
+                content: `
+                    <h3>🔍 Mari Kenali Papan Catur</h3>
+                    <p>Papan catur memiliki 64 kotak (8x8) dengan warna terang dan gelap bergantian.</p>
+                    <div class="tutorial-highlight">
+                        <h4>📍 Koordinat Papan:</h4>
+                        <ul>
+                            <li><strong>File (Kolom):</strong> a, b, c, d, e, f, g, h (dari kiri ke kanan)</li>
+                            <li><strong>Rank (Baris):</strong> 1, 2, 3, 4, 5, 6, 7, 8 (dari bawah ke atas)</li>
+                            <li><strong>Contoh:</strong> Kotak kiri bawah adalah a1, kanan atas h8</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>🎯 Aturan Setup:</strong> Papan harus diposisikan dengan kotak putih di pojok kanan bawah setiap pemain.
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "empty",
+                highlights: []
+            },
+            {
+                title: "♟️ Setup Bidak - Posisi Awal",
+                content: `
+                    <h3>🏗️ Setup Bidak yang Benar</h3>
+                    <p>Setiap pemain memulai dengan 16 bidak yang disusun dalam formasi standar.</p>
+                    <div class="tutorial-highlight">
+                        <h4>👑 Bidak Putih (Anda):</h4>
+                        <ul>
+                            <li><strong>Baris 1:</strong> Benteng, Kuda, Gajah, Ratu, Raja, Gajah, Kuda, Benteng</li>
+                            <li><strong>Baris 2:</strong> 8 Pion</li>
+                        </ul>
+                        <h4>♚ Bidak Hitam (Lawan):</h4>
+                        <ul>
+                            <li><strong>Baris 8:</strong> Benteng, Kuda, Gajah, Ratu, Raja, Gajah, Kuda, Benteng</li>
+                            <li><strong>Baris 7:</strong> 8 Pion</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>👸 Ingat:</strong> Ratu putih di kotak putih (d1), ratu hitam di kotak hitam (d8) - "Queen on her color!"
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "standard",
+                highlights: [
+                    {row: 0, col: 3, type: "tutorial-highlight"}, // Ratu hitam
+                    {row: 7, col: 3, type: "tutorial-highlight"}  // Ratu putih
+                ]
+            },
+            {
+                title: "♙ Pion - Bidak Terdepan",
+                content: `
+                    <h3>🎯 Mari Belajar Gerakan Pion</h3>
+                    <p>Pion adalah bidak terdepan yang melindungi bidak lain. Meski terlihat lemah, pion sangat penting!</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Pion Bergerak:</h4>
+                        <ul>
+                            <li><strong>Normal:</strong> Maju 1 kotak ke depan</li>
+                            <li><strong>Langkah Pertama:</strong> Boleh maju 2 kotak</li>
+                            <li><strong>Menangkap:</strong> Diagonal ke depan (tidak bisa menangkap ke depan langsung)</li>
+                            <li><strong>En Passant:</strong> Aturan khusus tangkap pion</li>
+                            <li><strong>Promosi:</strong> Jadi bidak lain saat mencapai ujung papan</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>💡 Strategi:</strong> Pion tidak bisa mundur, jadi pikir baik-baik sebelum memajukan pion!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "pawn-demo",
+                highlights: [
+                    {row: 6, col: 4, type: "tutorial-highlight"}, // Pion putih e2
+                    {row: 4, col: 4, type: "tutorial-target"},    // Kemungkinan gerakan
+                    {row: 5, col: 4, type: "tutorial-target"}     // Kemungkinan gerakan
+                ]
+            },
+            {
+                title: "♖ Benteng - Kekuatan Garis Lurus",
+                content: `
+                    <h3>🏰 Benteng - Bidak yang Kuat</h3>
+                    <p>Benteng adalah salah satu bidak terkuat yang bergerak dalam garis lurus tanpa batas.</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Benteng Bergerak:</h4>
+                        <ul>
+                            <li><strong>Horizontal:</strong> Ke kiri atau kanan tanpa batas</li>
+                            <li><strong>Vertikal:</strong> Ke atas atau bawah tanpa batas</li>
+                            <li><strong>Tidak bisa:</strong> Bergerak diagonal atau melompati bidak</li>
+                            <li><strong>Rokade:</strong> Gerakan khusus dengan raja</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>🎯 Nilai:</strong> Benteng bernilai 5 poin, sangat berharga untuk mengontrol file dan rank!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "rook-demo",
+                highlights: [
+                    {row: 4, col: 4, type: "tutorial-highlight"} // Benteng di tengah
+                ]
+            },
+            {
+                title: "♘ Kuda - Gerakan Unik",
+                content: `
+                    <h3>🐎 Kuda - Bidak dengan Gerakan Unik</h3>
+                    <p>Kuda adalah satu-satunya bidak yang bisa melompati bidak lain dengan pola gerakan bentuk "L".</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Kuda Bergerak:</h4>
+                        <ul>
+                            <li><strong>Pola L:</strong> 2 kotak ke satu arah + 1 kotak tegak lurus</li>
+                            <li><strong>Melompat:</strong> Bisa melewati bidak lain</li>
+                            <li><strong>8 Gerakan:</strong> Maksimal 8 kemungkinan dari tengah papan</li>
+                            <li><strong>Taktik:</strong> Sangat efektif untuk serangan mendadak</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>💡 Tip:</strong> Kuda paling kuat di tengah papan, lemah di pojok!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "knight-demo",
+                highlights: [
+                    {row: 4, col: 4, type: "tutorial-highlight"} // Kuda di tengah
+                ]
+            },
+            {
+                title: "♗ Gajah - Kekuatan Diagonal",
+                content: `
+                    <h3>🔷 Gajah - Master Diagonal</h3>
+                    <p>Gajah bergerak secara diagonal dan sangat kuat untuk mengontrol kotak-kotak diagonal panjang.</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Gajah Bergerak:</h4>
+                        <ul>
+                            <li><strong>Diagonal:</strong> Semua arah diagonal tanpa batas</li>
+                            <li><strong>Warna Tetap:</strong> Selalu di warna kotak yang sama</li>
+                            <li><strong>Tidak bisa:</strong> Melompati bidak atau pindah warna kotak</li>
+                            <li><strong>Pasangan:</strong> Setiap pemain punya gajah kotak putih & hitam</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>🎯 Strategi:</strong> Gajah sangat kuat di papan terbuka, lemah jika terhalang pion!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "bishop-demo",
+                highlights: [
+                    {row: 4, col: 4, type: "tutorial-highlight"} // Gajah di tengah
+                ]
+            },
+            {
+                title: "♕ Ratu - Bidak Terkuat",
+                content: `
+                    <h3>👑 Ratu - The Ultimate Piece</h3>
+                    <p>Ratu adalah bidak terkuat yang menggabungkan kekuatan benteng dan gajah!</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Ratu Bergerak:</h4>
+                        <ul>
+                            <li><strong>8 Arah:</strong> Horizontal, vertikal, dan diagonal</li>
+                            <li><strong>Tanpa Batas:</strong> Sepanjang tidak terhalang bidak</li>
+                            <li><strong>Paling Kuat:</strong> Bernilai 9 poin</li>
+                            <li><strong>Penting:</strong> Jangan dimainkan terlalu awal!</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-warning">
+                        <strong>⚠️ Hati-hati:</strong> Ratu sangat berharga. Jangan sampai diserang di awal permainan!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "queen-demo",
+                highlights: [
+                    {row: 4, col: 4, type: "tutorial-highlight"} // Ratu di tengah
+                ]
+            },
+            {
+                title: "♔ Raja - Bidak Terpenting",
+                content: `
+                    <h3>🛡️ Raja - Bidak yang Harus Dilindungi</h3>
+                    <p>Raja adalah bidak terpenting. Jika raja terancam dan tidak bisa diselamatkan (skakmat), permainan berakhir!</p>
+                    <div class="tutorial-highlight">
+                        <h4>📋 Cara Raja Bergerak:</h4>
+                        <ul>
+                            <li><strong>1 Kotak:</strong> Ke segala arah, tapi hanya 1 kotak</li>
+                            <li><strong>Tidak Boleh:</strong> Masuk ke kotak yang diserang lawan</li>
+                            <li><strong>Rokade:</strong> Gerakan khusus dengan benteng</li>
+                            <li><strong>Endgame:</strong> Menjadi bidak aktif di akhir permainan</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>🛡️ Keamanan:</strong> Prioritas utama adalah menjaga keamanan raja Anda!
+                    </div>
+                `,
+                showBoard: true,
+                boardSetup: "king-demo",
+                highlights: [
+                    {row: 4, col: 4, type: "tutorial-highlight"} // Raja di tengah
+                ]
+            },
+            {
+                title: "🎓 Selamat! Tutorial Selesai",
+                content: `
+                    <h3>🎉 Anda Telah Menyelesaikan Tutorial Dasar!</h3>
+                    <p>Selamat! Anda sudah mempelajari dasar-dasar catur. Sekarang saatnya untuk berlatih!</p>
+                    <div class="tutorial-highlight">
+                        <h4>✅ Yang Sudah Anda Pelajari:</h4>
+                        <ul>
+                            <li>🏁 Setup papan catur dan koordinat</li>
+                            <li>♟️ Cara bergerak semua bidak catur</li>
+                            <li>🎯 Nilai relatif setiap bidak</li>
+                            <li>⚡ Aturan dasar permainan catur</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-tip">
+                        <strong>🚀 Langkah Selanjutnya:</strong> Mulai bermain melawan AI untuk berlatih! Pilih level mudah dulu untuk membiasakan diri.
+                    </div>
+                `,
+                showBoard: false
+            }
+        ];
+
+        this.currentTutorialStep = 0;
+        this.tutorialBoard = null;
+    }
+
+    startTutorialMode() {
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('tutorialModal').style.display = 'block';
+
+        this.setupTutorialSystem();
+        this.currentTutorialStep = 0;
+        this.showTutorialStep();
+    }
+
+    showTutorialStep() {
+        const step = this.tutorialData[this.currentTutorialStep];
+        const totalSteps = this.tutorialData.length;
+
+        // Update header
+        document.getElementById('tutorialTitle').textContent = step.title;
+        document.getElementById('tutorialProgress').textContent = `${this.currentTutorialStep + 1} / ${totalSteps}`;
+
+        // Update navigation buttons
+        document.getElementById('tutorialPrevBtn').disabled = this.currentTutorialStep === 0;
+        document.getElementById('tutorialNextBtn').style.display = this.currentTutorialStep === totalSteps - 1 ? 'none' : 'inline-block';
+        document.getElementById('tutorialComplete').style.display = this.currentTutorialStep === totalSteps - 1 ? 'inline-block' : 'none';
+
+        // Update content
+        document.getElementById('tutorialStep').innerHTML = step.content;
+
+        // Handle board display
+        const boardContainer = document.getElementById('tutorialBoardContainer');
+        if (step.showBoard) {
+            boardContainer.style.display = 'block';
+            this.createTutorialBoard(step);
+        } else {
+            boardContainer.style.display = 'none';
+        }
+    }
+
+    createTutorialBoard(step) {
+        const boardElement = document.getElementById('tutorialBoard');
+        boardElement.innerHTML = '';
+
+        // Create 8x8 grid
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const square = document.createElement('div');
+                square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                square.dataset.row = row;
+                square.dataset.col = col;
+
+                // Add piece based on setup
+                if (step.boardSetup === 'standard') {
+                    const piece = this.getTutorialPiece(row, col, 'standard');
+                    if (piece) {
+                        square.textContent = this.engine.getPieceSymbol(piece);
+                    }
+                } else if (step.boardSetup === 'pawn-demo') {
+                    if (row === 6 && col === 4) square.textContent = '♙'; // White pawn
+                    if (row === 1 && col === 4) square.textContent = '♟'; // Black pawn
+                } else if (step.boardSetup === 'rook-demo') {
+                    if (row === 4 && col === 4) square.textContent = '♖'; // White rook
+                } else if (step.boardSetup === 'knight-demo') {
+                    if (row === 4 && col === 4) square.textContent = '♘'; // White knight
+                } else if (step.boardSetup === 'bishop-demo') {
+                    if (row === 4 && col === 4) square.textContent = '♗'; // White bishop
+                } else if (step.boardSetup === 'queen-demo') {
+                    if (row === 4 && col === 4) square.textContent = '♕'; // White queen
+                } else if (step.boardSetup === 'king-demo') {
+                    if (row === 4 && col === 4) square.textContent = '♔'; // White king
+                }
+
+                // Add highlights
+                if (step.highlights) {
+                    const highlight = step.highlights.find(h => h.row === row && h.col === col);
+                    if (highlight) {
+                        square.classList.add(highlight.type);
+                    }
+                }
+
+                boardElement.appendChild(square);
+            }
+        }
+    }
+
+    getTutorialPiece(row, col, setup) {
+        if (setup !== 'standard') return null;
+
+        // Standard chess setup
+        const startPosition = [
+            [
+                {type: 'rook', color: 'black'}, {type: 'knight', color: 'black'}, 
+                {type: 'bishop', color: 'black'}, {type: 'queen', color: 'black'}, 
+                {type: 'king', color: 'black'}, {type: 'bishop', color: 'black'}, 
+                {type: 'knight', color: 'black'}, {type: 'rook', color: 'black'}
+            ],
+            Array(8).fill({type: 'pawn', color: 'black'}),
+            Array(8).fill(null),
+            Array(8).fill(null),
+            Array(8).fill(null),
+            Array(8).fill(null),
+            Array(8).fill({type: 'pawn', color: 'white'}),
+            [
+                {type: 'rook', color: 'white'}, {type: 'knight', color: 'white'}, 
+                {type: 'bishop', color: 'white'}, {type: 'queen', color: 'white'}, 
+                {type: 'king', color: 'white'}, {type: 'bishop', color: 'white'}, 
+                {type: 'knight', color: 'white'}, {type: 'rook', color: 'white'}
+            ]
+        ];
+
+        return startPosition[row][col];
+    }
+
     setupEventListeners() {
+        // Tutorial navigation
+        const tutorialPrevBtn = document.getElementById('tutorialPrevBtn');
+        const tutorialNextBtn = document.getElementById('tutorialNextBtn');
+        const tutorialSkip = document.getElementById('tutorialSkip');
+        const tutorialComplete = document.getElementById('tutorialComplete');
+        const tutorialClose = document.querySelector('.tutorial-close');
+
+        if (tutorialPrevBtn) {
+            tutorialPrevBtn.addEventListener('click', () => {
+                if (this.currentTutorialStep > 0) {
+                    this.currentTutorialStep--;
+                    this.showTutorialStep();
+                }
+            });
+        }
+
+        if (tutorialNextBtn) {
+            tutorialNextBtn.addEventListener('click', () => {
+                if (this.currentTutorialStep < this.tutorialData.length - 1) {
+                    this.currentTutorialStep++;
+                    this.showTutorialStep();
+                }
+            });
+        }
+
+        if (tutorialSkip || tutorialComplete) {
+            const completeTutorial = () => {
+                document.getElementById('tutorialModal').style.display = 'none';
+                document.getElementById('welcomeScreen').style.display = 'flex';
+
+                // Reset tutorial selections
+                document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('selected'));
+                document.getElementById('startGameFromWelcome').disabled = true;
+                this.selectedGameMode = null;
+
+                this.showToast('🎓 Tutorial selesai! Silakan pilih mode permainan.', 'success');
+            };
+
+            if (tutorialSkip) tutorialSkip.addEventListener('click', completeTutorial);
+            if (tutorialComplete) tutorialComplete.addEventListener('click', completeTutorial);
+        }
+
+        if (tutorialClose) {
+            tutorialClose.addEventListener('click', () => {
+                document.getElementById('tutorialModal').style.display = 'none';
+                document.getElementById('welcomeScreen').style.display = 'flex';
+
+                // Reset tutorial selections
+                document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('selected'));
+                document.getElementById('startGameFromWelcome').disabled = true;
+                this.selectedGameMode = null;
+            });
+        }
+
+        // Close tutorial modal when clicking outside
+        const tutorialModal = document.getElementById('tutorialModal');
+        if (tutorialModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === tutorialModal) {
+                    tutorialModal.style.display = 'none';
+                    document.getElementById('welcomeScreen').style.display = 'flex';
+
+                    // Reset tutorial selections
+                    document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('selected'));
+                    document.getElementById('startGameFromWelcome').disabled = true;
+                    this.selectedGameMode = null;
+                }
+            });
+        }
+
         // Welcome screen buttons
         const updateInfoBtn = document.getElementById('updateInfoBtn');
         const updateInfoModal = document.getElementById('updateInfoModal');
@@ -2083,6 +2604,10 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         const themeBtn = document.getElementById('themeBtn');
         const themeModal = document.getElementById('themeModal');
         const themeCloseBtn = document.querySelector('.theme-close');
+        const howToPlayBtn = document.getElementById('howToPlayBtn');
+        const howToPlayModal = document.getElementById('howToPlayModal');
+        const howToPlayCloseBtn = document.querySelector('.how-to-play-close');
+        const howToPlayCloseBtnFooter = document.querySelector('.how-to-play-close-btn');
         const myDeveloperBtn = document.getElementById('myDeveloperBtn');
         const myDeveloperModal = document.getElementById('myDeveloperModal');
         const developerCloseBtn = document.querySelector('.developer-close');
@@ -2111,6 +2636,34 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         if (themeCloseBtn && themeModal) {
             themeCloseBtn.addEventListener('click', () => {
                 themeModal.style.display = 'none';
+            });
+        }
+
+        // How to Play modal functionality
+        if (howToPlayBtn && howToPlayModal) {
+            howToPlayBtn.addEventListener('click', () => {
+                howToPlayModal.style.display = 'block';
+            });
+        }
+
+        if (howToPlayCloseBtn && howToPlayModal) {
+            howToPlayCloseBtn.addEventListener('click', () => {
+                howToPlayModal.style.display = 'none';
+            });
+        }
+
+        if (howToPlayCloseBtnFooter && howToPlayModal) {
+            howToPlayCloseBtnFooter.addEventListener('click', () => {
+                howToPlayModal.style.display = 'none';
+            });
+        }
+
+        // Close how to play modal when clicking outside
+        if (howToPlayModal) {
+            window.addEventListener('click', (e) => {
+                if (e.target === howToPlayModal) {
+                    howToPlayModal.style.display = 'none';
+                }
             });
         }
 
@@ -2360,56 +2913,223 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
     }
 
     updateInlineStats() {
+        // Update White Stats
         const whiteStatsElement = document.getElementById('whiteStatsInline');
+        if (whiteStatsElement) {
+            const whiteCapturedText = this.formatCapturedPieces(this.gameStats.white.captured);
+            const whiteTotalValue = this.gameStats.white.totalValue;
+            const whiteMoveQuality = this.formatMoveQuality(this.gameStats.white.moveQuality);
+
+            whiteStatsElement.innerHTML = `
+                <div class="captured-pieces-inline">♔ Tangkapan: ${whiteCapturedText}</div>
+                <div class="total-value-inline">💰 Total Nilai: ${whiteTotalValue}</div>
+                <div class="move-quality-inline">🎯 Kualitas Langkah: ${whiteMoveQuality}</div>
+            `;
+        }
+
+        // Update Black Stats  
         const blackStatsElement = document.getElementById('blackStatsInline');
+        if (blackStatsElement) {
+            const blackCapturedText = this.formatCapturedPieces(this.gameStats.black.captured);
+            const blackTotalValue = this.gameStats.black.totalValue;
+            const blackMoveQuality = this.formatMoveQuality(this.gameStats.black.moveQuality);
 
-        // Update white player stats
-        const whiteStats = this.gameStats.white;
-        let whiteCapturedText = '';
-        if (whiteStats.totalValue > 0) {
-            const captures = [];
-            Object.entries(whiteStats.captured).forEach(([piece, count]) => {
-                if (count > 0) {
-                    const pieceSymbols = {
-                        'pawn': '♟️', 'rook': '♜', 'knight': '♞',
-                        'bishop': '♝', 'queen': '♛', 'king': '♚'
-                    };
-                    captures.push(`<span class="piece-count-inline">${pieceSymbols[piece]} ${count}</span>`);
-                }
-            });
-            whiteCapturedText = captures.join(' ');
-        } else {
-            whiteCapturedText = '🔸 Belum ada tangkapan';
+            blackStatsElement.innerHTML = `
+                <div class="captured-pieces-inline">♚ Tangkapan: ${blackCapturedText}</div>
+                <div class="total-value-inline">💰 Total Nilai: ${blackTotalValue}</div>
+                <div class="move-quality-inline">🎯 Kualitas Langkah: ${blackMoveQuality}</div>
+            `;
         }
 
-        whiteStatsElement.innerHTML = `
-            <div class="captured-pieces-inline">♔ Tangkapan: ${whiteCapturedText}</div>
-            <div class="total-value-inline">💰 Total Nilai: ${whiteStats.totalValue}</div>
-        `;
+        console.log('📊 Inline stats updated:', {
+            white: this.gameStats.white,
+            black: this.gameStats.black
+        });
+    }
 
-        // Update black player stats
-        const blackStats = this.gameStats.black;
-        let blackCapturedText = '';
-        if (blackStats.totalValue > 0) {
-            const captures = [];
-            Object.entries(blackStats.captured).forEach(([piece, count]) => {
-                if (count > 0) {
-                    const pieceSymbols = {
-                        'pawn': '♙', 'rook': '♖', 'knight': '♘',
-                        'bishop': '♗', 'queen': '♕', 'king': '♔'
-                    };
-                    captures.push(`<span class="piece-count-inline">${pieceSymbols[piece]} ${count}</span>`);
-                }
-            });
-            blackCapturedText = captures.join(' ');
-        } else {
-            blackCapturedText = '🔸 Belum ada tangkapan';
+    formatCapturedPieces(captured) {
+        const captureList = [];
+        const pieceSymbols = {
+            'pawn': '♟️', 'rook': '♜', 'knight': '♞',
+            'bishop': '♝', 'queen': '♛', 'king': '♚'
+        };
+
+        Object.entries(captured).forEach(([piece, count]) => {
+            if (count > 0) {
+                captureList.push(`${pieceSymbols[piece]}${count}`);
+            }
+        });
+
+        return captureList.length > 0 ? captureList.join(' ') : 'Tidak ada';
+    }
+
+    evaluateMoveQuality(move) {
+        if (!move || !move.player) return;
+
+        const playerColor = move.player;
+        let moveQuality = 'best'; // Default quality
+
+        // Ensure moveQuality object exists and is initialized
+        if (!this.gameStats[playerColor].moveQuality) {
+            this.gameStats[playerColor].moveQuality = {
+                brilliant: 0,
+                great: 0,
+                best: 0,
+                mistake: 0,
+                miss: 0,
+                blunder: 0
+            };
         }
 
-        blackStatsElement.innerHTML = `
-            <div class="captured-pieces-inline">♚ Tangkapan: ${blackCapturedText}</div>
-            <div class="total-value-inline">💰 Total Nilai: ${blackStats.totalValue}</div>
-        `;
+        try {
+            // Evaluate based on different criteria
+            const capturedValue = move.captured ? this.engine.pieceValues[move.captured.type] : 0;
+            const movingPieceValue = this.engine.pieceValues[move.piece.type];
+
+            // Check if move puts opponent in check
+            const opponentInCheck = this.engine.isInCheck(playerColor === 'white' ? 'black' : 'white');
+
+            // Brilliant move criteria
+            if (capturedValue >= 9 || // Queen capture
+                move.promotion === 'queen' || // Pawn promotion
+                (opponentInCheck && capturedValue >= 5) || // Check + valuable capture
+                move.castling) { // Castling move
+                moveQuality = 'brilliant';
+            }
+            // Great move criteria
+            else if (capturedValue >= 5 || // Rook/Queen capture
+                    opponentInCheck || // Putting opponent in check
+                    (move.piece.type === 'pawn' && Math.abs(move.to.row - move.from.row) === 2)) { // Pawn advance
+                moveQuality = 'great';
+            }
+            // Check for mistakes/blunders
+            else if (this.wouldLoseMaterial(move)) {
+                if (movingPieceValue >= 5) {
+                    moveQuality = 'blunder'; // Losing valuable piece
+                } else {
+                    moveQuality = 'mistake'; // Losing less valuable piece
+                }
+            }
+            // Miss - neutral move with no clear benefit
+            else if (capturedValue === 0 && !opponentInCheck && !this.improvesPosition(move)) {
+                moveQuality = 'miss';
+            }
+
+            // Update statistics safely
+            if (this.gameStats[playerColor] && this.gameStats[playerColor].moveQuality) {
+                this.gameStats[playerColor].moveQuality[moveQuality]++;
+            }
+
+            console.log(`📊 Move quality: ${playerColor} made a ${moveQuality} move`);
+        } catch (error) {
+            console.error('Error in evaluateMoveQuality:', error);
+            // Fallback to best move if error occurs
+            if (this.gameStats[playerColor] && this.gameStats[playerColor].moveQuality) {
+                this.gameStats[playerColor].moveQuality.best++;
+            }
+        }
+    }
+
+    wouldLoseMaterial(move) {
+        // Simple check if the piece can be captured after this move
+        const toRow = move.to.row;
+        const toCol = move.to.col;
+        const piece = move.piece;
+
+        // Check if any opponent piece can capture this position
+        const opponentColor = piece.color === 'white' ? 'black' : 'white';
+
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const opponentPiece = this.engine.board[row][col];
+                if (opponentPiece && opponentPiece.color === opponentColor) {
+                    if (this.engine.isValidPieceMove(opponentPiece, row, col, toRow, toCol)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    improvesPosition(move) {
+        // Simple position improvement check
+        const piece = move.piece;
+        const fromRow = move.from.row;
+        const toRow = move.to.row;
+        const toCol = move.to.col;
+
+        // Check if moving towards center
+        const centerDistance = Math.abs(3.5 - toRow) + Math.abs(3.5 - toCol);
+        const oldCenterDistance = Math.abs(3.5 - fromRow) + Math.abs(3.5 - move.from.col);
+
+        // Check piece development
+        if (piece.type === 'knight' || piece.type === 'bishop') {
+            const startRow = piece.color === 'white' ? 7 : 0;
+            if (fromRow === startRow) return true; // Developing piece
+        }
+
+        return centerDistance < oldCenterDistance;
+    }
+
+    formatMoveQuality(moveQuality, showTooltip = false) {
+        if (!moveQuality) {
+            return '🔸 Belum ada langkah';
+        }
+
+        const qualities = [];
+        const explanations = {
+            brilliant: 'Langkah cemerlang - strategi istimewa seperti tangkap bidak berharga, promosi, atau kombinasi brilian',
+            great: 'Langkah bagus - keputusan tactical yang baik seperti skak, tangkap bidak, atau posisi menguntungkan',
+            best: 'Langkah terbaik - gerakan standar yang optimal sesuai strategi catur',
+            mistake: 'Kesalahan kecil - langkah kurang optimal yang masih dapat diperbaiki',
+            miss: 'Langkah netral - gerakan biasa tanpa dampak strategis yang signifikan',
+            blunder: 'Blunder besar - kesalahan fatal yang merugikan posisi secara drastis'
+        };
+
+        if (moveQuality.brilliant > 0) {
+            qualities.push(`🌟 Cemerlang: ${moveQuality.brilliant}`);
+        }
+        if (moveQuality.great > 0) {
+            qualities.push(`🎯 Bagus: ${moveQuality.great}`);
+        }
+        if (moveQuality.best > 0) {
+            qualities.push(`✅ Terbaik: ${moveQuality.best}`);
+        }
+        if (moveQuality.mistake > 0) {
+            qualities.push(`⚠️ Keliru: ${moveQuality.mistake}`);
+        }
+        if (moveQuality.miss > 0) {
+            qualities.push(`😐 Netral: ${moveQuality.miss}`);
+        }
+        if (moveQuality.blunder > 0) {
+            qualities.push(`💥 Blunder: ${moveQuality.blunder}`);
+        }
+
+        if (qualities.length === 0) {
+            return '🔸 Belum ada langkah';
+        }
+
+        let result = qualities.join(' • ');
+
+        // Tambahkan penjelasan singkat untuk kualitas move tertinggi
+        if (showTooltip) {
+            if (moveQuality.brilliant > 0) {
+                result += `\n📝 ${explanations.brilliant}`;
+            } else if (moveQuality.great > 0) {
+                result += `\n📝 ${explanations.great}`;
+            } else if (moveQuality.best > 0) {
+                result += `\n📝 ${explanations.best}`;
+            } else if (moveQuality.blunder > 0) {
+                result += `\n📝 ${explanations.blunder}`;
+            } else if (moveQuality.mistake > 0) {
+                result += `\n📝 ${explanations.mistake}`;
+            } else if (moveQuality.miss > 0) {
+                result += `\n📝 ${explanations.miss}`;
+            }
+        }
+
+        return result;
     }
 
     applySettings() {
@@ -2485,6 +3205,69 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
         }
     }
 
+    addRoundToHistory(roundNumber, whiteCaptured, blackCaptured, whiteValue, blackValue, winner, drawReason = null) {
+        try {
+            const historyList = document.getElementById('roundHistoryList');
+            if (!historyList) return;
+
+            const historyEntry = document.createElement('div');
+            historyEntry.className = 'round-history-entry';
+
+            const whiteCaptureText = this.formatCapturedPieces(whiteCaptured || {});
+            const blackCaptureText = this.formatCapturedPieces(blackCaptured || {});
+
+            // Format move quality for history
+            const whiteMoveQuality = this.formatMoveQuality(this.gameStats.white.moveQuality || {});
+            const blackMoveQuality = this.formatMoveQuality(this.gameStats.black.moveQuality || {});
+
+            let resultText = '';
+            let resultClass = '';
+
+            if (drawReason) {
+                resultText = `🤝 Seri (${drawReason})`;
+                resultClass = 'draw-result';
+            } else if (winner === 'Alpha-AI') {
+                resultText = '🏆 Alpha-AI Menang';
+                resultClass = 'white-win';
+            } else if (winner === 'Beta-AI') {
+                resultText = '🏆 Beta-AI Menang';
+                resultClass = 'black-win';
+            } else {
+                resultText = '🤝 Seri';
+                resultClass = 'draw-result';
+            }
+
+            historyEntry.innerHTML = `
+                <div class="round-header">
+                    <h4>🎯 Round ${roundNumber}</h4>
+                    <span class="round-result ${resultClass}">${resultText}</span>
+                </div>
+                <div class="round-stats">
+                    <div class="player-round-stats">
+                        <div class="player-name">♔ Alpha-AI</div>
+                        <div class="round-captures">Tangkapan: ${whiteCaptureText}</div>
+                        <div class="round-value">Total Nilai: ${whiteValue || 0}</div>
+                        <div class="round-quality">Kualitas: ${whiteMoveQuality}</div>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="player-round-stats">
+                        <div class="player-name">♚ Beta-AI</div>
+                        <div class="round-captures">Tangkapan: ${blackCaptureText}</div>
+                        <div class="round-value">Total Nilai: ${blackValue || 0}</div>
+                        <div class="round-quality">Kualitas: ${blackMoveQuality}</div>
+                    </div>
+                </div>
+            `;
+
+            historyList.appendChild(historyEntry);
+
+            // Auto scroll to bottom
+            historyList.scrollTop = historyList.scrollHeight;
+        } catch (error) {
+            console.error('Error adding round to history:', error);
+        }
+    }
+
     // Placeholder for prediction accuracy update logic
     updatePredictionAccuracy(winnerColor) {
         if (this.engine.gameMode === 'bot-vs-bot') {
@@ -2528,13 +3311,29 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                     captured: { pawn: 0, rook: 0, knight: 0, bishop: 0, queen: 0 },
                     totalValue: 0,
                     wins: 0,
-                    losses: 0
+                    losses: 0,
+                    moveQuality: {
+                        brilliant: 0,
+                        great: 0,
+                        best: 0,
+                        mistake: 0,
+                        miss: 0,
+                        blunder: 0
+                    }
                 },
                 black: {
                     captured: { pawn: 0, rook: 0, knight: 0, bishop: 0, queen: 0 },
                     totalValue: 0,
                     wins: 0,
-                    losses: 0
+                    losses: 0,
+                    moveQuality: {
+                        brilliant: 0,
+                        great: 0,
+                        best: 0,
+                        mistake: 0,
+                        miss: 0,
+                        blunder: 0
+                    }
                 }
             };
 
@@ -2544,18 +3343,27 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
             console.log('🔄 Tournament statistics completely reset for new tournament');
         } else {
             // PRESERVE ALL statistics during ongoing tournament - including captures and values
+            const whiteMoveQuality = this.gameStats?.white?.moveQuality || {
+                brilliant: 0, great: 0, best: 0, mistake: 0, miss: 0, blunder: 0
+            };
+            const blackMoveQuality = this.gameStats?.black?.moveQuality || {
+                brilliant: 0, great: 0, best: 0, mistake: 0, miss: 0, blunder: 0
+            };
+
             this.gameStats = {
                 white: {
                     captured: whiteCaptured,
                     totalValue: whiteTotalValue,
                     wins: whiteWins,
-                    losses: whiteLosses
+                    losses: whiteLosses,
+                    moveQuality: whiteMoveQuality
                 },
                 black: {
                     captured: blackCaptured,
                     totalValue: blackTotalValue,
                     wins: blackWins,
-                    losses: blackLosses
+                    losses: blackLosses,
+                    moveQuality: blackMoveQuality
                 }
             };
 
@@ -2822,7 +3630,7 @@ Kecepatan: ${this.engine.botSpeed / 1000}s
                 this.logMove(`🤝 TOURNAMENT BERAKHIR SERI - TIE GAME! 🤝`);
             }
 
-            this.logMove(`🏁 ═══════════════════════════════════`);
+            this.logMove(`🎊 ═══════════════════════════════════ 🎊`);
         }
 
         this.updateTournamentDisplay();

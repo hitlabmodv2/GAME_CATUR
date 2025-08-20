@@ -51,6 +51,7 @@
             <!-- Header dengan tombol pengaturan dan info update -->
             <div class="welcome-header">
                 <div class="header-buttons">
+                    <button id="howToPlayBtn" class="welcome-btn how-to-play-btn">📚 CARA BERMAIN</button>
                     <button id="themeBtn" class="welcome-btn theme-btn">🎨 TEMA</button>
                     <button id="updateInfoBtn" class="welcome-btn update-info-btn">🔔 Info Update</button>
                     <button id="uptimeBtn" class="welcome-btn uptime-btn">📊 SYSTEM INFO</button>
@@ -82,6 +83,12 @@
                     <div class="mode-icon">🤖 vs 🤖</div>
                     <h3>Bot vs Bot</h3>
                     <p>Tonton pertarungan epik antara dua AI</p>
+                </div>
+
+                <div class="mode-card" data-mode="tutorial">
+                    <div class="mode-icon">🎓 📚</div>
+                    <h3>Mode Tutorial</h3>
+                    <p>Belajar catur step-by-step untuk pemula</p>
                 </div>
             </div>
 
@@ -296,7 +303,81 @@
 
             </div>
 
+            <!-- Tutorial Settings -->
+            <div class="tutorial-settings" id="tutorialSettings" style="display: none;">
+                <h3>📚 Pengaturan Tutorial:</h3>
+                <div class="tutorial-info">
+                    <div class="tutorial-features">
+                        <div class="tutorial-feature">
+                            <span class="feature-icon">🎯</span>
+                            <div class="feature-text">
+                                <h4>Tutorial Interaktif</h4>
+                                <p>Belajar catur langkah demi langkah dengan panduan visual</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-feature">
+                            <span class="feature-icon">🎮</span>
+                            <div class="feature-text">
+                                <h4>Praktik Langsung</h4>
+                                <p>Mencoba setiap gerakan bidak dengan bantuan AI</p>
+                            </div>
+                        </div>
+                        <div class="tutorial-feature">
+                            <span class="feature-icon">📖</span>
+                            <div class="feature-text">
+                                <h4>Materi Lengkap</h4>
+                                <p>Dari dasar-dasar hingga strategi tingkat menengah</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tutorial-progress-info">
+                        <h4>📊 Yang Akan Dipelajari:</h4>
+                        <ul>
+                            <li>✅ Pengenalan papan catur dan bidak</li>
+                            <li>✅ Cara bergerak setiap bidak</li>
+                            <li>✅ Aturan khusus (rokade, en passant, promosi)</li>
+                            <li>✅ Strategi dasar opening, middlegame, endgame</li>
+                            <li>✅ Taktik catur (pin, fork, skewer)</li>
+                            <li>✅ Latihan melawan AI bertahap</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <button id="startGameFromWelcome" class="start-game-btn" disabled>🎮 MULAI PERMAINAN</button>
+        </div>
+    </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal">
+        <div class="modal-content tutorial-modal">
+            <div class="tutorial-header">
+                <h2 id="tutorialTitle">🎓 Tutorial Catur - Step 1</h2>
+                <div class="tutorial-controls">
+                    <button id="tutorialPrevBtn" class="tutorial-nav-btn" disabled>◀️ Sebelumnya</button>
+                    <span id="tutorialProgress" class="tutorial-progress-text">1 / 10</span>
+                    <button id="tutorialNextBtn" class="tutorial-nav-btn">Selanjutnya ▶️</button>
+                </div>
+                <button class="close tutorial-close">&times;</button>
+            </div>
+            
+            <div class="tutorial-content">
+                <div id="tutorialStep" class="tutorial-step">
+                    <!-- Tutorial content will be loaded here -->
+                </div>
+                
+                <div class="tutorial-board-container" id="tutorialBoardContainer" style="display: none;">
+                    <div id="tutorialBoard" class="chess-board tutorial-board"></div>
+                    <div class="tutorial-instructions" id="tutorialInstructions">
+                        <p>Ikuti petunjuk di atas untuk melanjutkan tutorial</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tutorial-footer">
+                <button id="tutorialSkip" class="btn-secondary">⏭️ Lewati Tutorial</button>
+                <button id="tutorialComplete" class="btn-primary" style="display: none;">🎉 Selesai Tutorial</button>
+            </div>
         </div>
     </div>
 
@@ -685,6 +766,383 @@
         </div>
     </div>
 
+    <!-- How to Play Modal -->
+    <div id="howToPlayModal" class="modal">
+        <div class="modal-content how-to-play-modal">
+            <span class="close how-to-play-close">&times;</span>
+            <h2>📚 Cara Bermain Catur - Panduan Lengkap</h2>
+            
+            <div class="how-to-play-content">
+                <!-- Pengenalan Catur -->
+                <div class="guide-section">
+                    <h3>🏁 Pengenalan Catur</h3>
+                    <div class="guide-item">
+                        <p>♔ <strong>Catur</strong> adalah permainan strategi untuk 2 pemain yang dimainkan di papan berkotak 8x8 dengan 64 kotak berwarna terang dan gelap secara bergantian.</p>
+                        <p>🎯 <strong>Tujuan:</strong> Mengalahkan raja lawan dengan cara "skakmat" (checkmate) - memposisikan raja lawan dalam ancaman yang tidak bisa dihindari.</p>
+                    </div>
+                </div>
+
+                <!-- Setup Papan -->
+                <div class="guide-section">
+                    <h3>🏗️ Setup Papan Catur</h3>
+                    <div class="guide-item">
+                        <div class="board-setup-visual">
+                            <p>📋 <strong>Posisi Awal Bidak:</strong></p>
+                            <div class="chess-setup-grid">
+                                <div class="setup-row">
+                                    <span>8</span>
+                                    <span>♜</span><span>♞</span><span>♝</span><span>♛</span><span>♚</span><span>♝</span><span>♞</span><span>♜</span>
+                                </div>
+                                <div class="setup-row">
+                                    <span>7</span>
+                                    <span>♟</span><span>♟</span><span>♟</span><span>♟</span><span>♟</span><span>♟</span><span>♟</span><span>♟</span>
+                                </div>
+                                <div class="setup-row empty">
+                                    <span>6</span>
+                                    <span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span>
+                                </div>
+                                <div class="setup-row empty">
+                                    <span>5</span>
+                                    <span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span>
+                                </div>
+                                <div class="setup-row empty">
+                                    <span>4</span>
+                                    <span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span>
+                                </div>
+                                <div class="setup-row empty">
+                                    <span>3</span>
+                                    <span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span><span>·</span>
+                                </div>
+                                <div class="setup-row">
+                                    <span>2</span>
+                                    <span>♙</span><span>♙</span><span>♙</span><span>♙</span><span>♙</span><span>♙</span><span>♙</span><span>♙</span>
+                                </div>
+                                <div class="setup-row">
+                                    <span>1</span>
+                                    <span>♖</span><span>♘</span><span>♗</span><span>♕</span><span>♔</span><span>♗</span><span>♘</span><span>♖</span>
+                                </div>
+                                <div class="setup-row files">
+                                    <span></span>
+                                    <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p>📍 <strong>Tips Setup:</strong> Ratu putih di kotak putih (d1), ratu hitam di kotak hitam (d8). Ingat: "Queen on her color!" 👸</p>
+                    </div>
+                </div>
+
+                <!-- Bidak dan Gerakan -->
+                <div class="guide-section">
+                    <h3>♟️ Bidak Catur & Cara Bergerak</h3>
+                    
+                    <div class="pieces-grid">
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♙♟</span>
+                                <h4>Pion (Pawn)</h4>
+                                <span class="piece-value">💰 1 poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>➡️ Maju 1 kotak ke depan</li>
+                                    <li>⚡ Langkah pertama: bisa maju 2 kotak</li>
+                                    <li>🗡️ Menangkap: diagonal ke depan</li>
+                                    <li>🎊 <strong>En Passant:</strong> Tangkap pion lawan yang baru maju 2 kotak</li>
+                                    <li>👑 <strong>Promosi:</strong> Di ujung papan jadi bidak lain (biasanya ratu)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♖♜</span>
+                                <h4>Benteng (Rook)</h4>
+                                <span class="piece-value">💰 5 poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>↕️ Vertikal tanpa batas</li>
+                                    <li>↔️ Horizontal tanpa batas</li>
+                                    <li>🚫 Tidak bisa melompati bidak lain</li>
+                                    <li>🏰 Terlibat dalam rokade dengan raja</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♘♞</span>
+                                <h4>Kuda (Knight)</h4>
+                                <span class="piece-value">💰 3 poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>🏇 Bentuk huruf "L": 2 kotak + 1 kotak tegak lurus</li>
+                                    <li>🦘 Bisa melompati bidak lain</li>
+                                    <li>🎪 8 kemungkinan gerakan dari tengah papan</li>
+                                    <li>⚔️ Sangat efektif di permainan tengah</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♗♝</span>
+                                <h4>Gajah (Bishop)</h4>
+                                <span class="piece-value">💰 3 poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>↗️ Diagonal tanpa batas</li>
+                                    <li>↖️ Semua arah diagonal</li>
+                                    <li>🎨 Tetap di warna kotak yang sama</li>
+                                    <li>🚫 Tidak bisa melompati bidak lain</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♕♛</span>
+                                <h4>Ratu (Queen)</h4>
+                                <span class="piece-value">💰 9 poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>👑 Kombinasi benteng + gajah</li>
+                                    <li>🌟 8 arah: vertikal, horizontal, diagonal</li>
+                                    <li>💪 Bidak terkuat di papan</li>
+                                    <li>⚠️ Jangan dimainkan terlalu awal!</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="piece-card">
+                            <div class="piece-header">
+                                <span class="piece-symbol">♔♚</span>
+                                <h4>Raja (King)</h4>
+                                <span class="piece-value">💰 ∞ poin</span>
+                            </div>
+                            <div class="piece-moves">
+                                <p>🎯 <strong>Gerakan:</strong></p>
+                                <ul>
+                                    <li>👑 1 kotak ke segala arah</li>
+                                    <li>🛡️ Tidak boleh masuk ke kotak yang diserang</li>
+                                    <li>🏰 Bisa rokade dengan benteng (sekali dalam permainan)</li>
+                                    <li>⚡ Di endgame menjadi bidak aktif</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aturan Khusus -->
+                <div class="guide-section">
+                    <h3>⚡ Aturan Khusus Catur</h3>
+                    
+                    <div class="special-rules">
+                        <div class="rule-card">
+                            <h4>🏰 Rokade (Castling)</h4>
+                            <p><strong>Syarat:</strong></p>
+                            <ul>
+                                <li>✅ Raja dan benteng belum pernah bergerak</li>
+                                <li>✅ Tidak ada bidak di antara keduanya</li>
+                                <li>✅ Raja tidak dalam skak</li>
+                                <li>✅ Raja tidak melewati kotak yang diserang</li>
+                            </ul>
+                            <p><strong>Cara:</strong> Raja bergerak 2 kotak ke arah benteng, benteng pindah ke sebelah raja</p>
+                        </div>
+
+                        <div class="rule-card">
+                            <h4>🎯 En Passant</h4>
+                            <p><strong>Kondisi:</strong></p>
+                            <ul>
+                                <li>🏃 Pion lawan baru maju 2 kotak dari posisi awal</li>
+                                <li>🤝 Pion Anda bersebelahan dengan pion tersebut</li>
+                                <li>⚡ Harus dilakukan segera di giliran berikutnya</li>
+                            </ul>
+                            <p><strong>Hasil:</strong> Pion lawan tertangkap meski tidak di kotak tujuan</p>
+                        </div>
+
+                        <div class="rule-card">
+                            <h4>👑 Promosi Pion</h4>
+                            <p><strong>Ketika:</strong> Pion mencapai ujung papan (baris 8 untuk putih, baris 1 untuk hitam)</p>
+                            <p><strong>Pilihan:</strong></p>
+                            <ul>
+                                <li>♕ Ratu (paling umum - sangat kuat!)</li>
+                                <li>♖ Benteng</li>
+                                <li>♗ Gajah</li>
+                                <li>♘ Kuda</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kondisi Akhir Permainan -->
+                <div class="guide-section">
+                    <h3>🏁 Cara Permainan Berakhir</h3>
+                    
+                    <div class="endgame-conditions">
+                        <div class="condition-card win">
+                            <h4>🏆 MENANG</h4>
+                            <ul>
+                                <li>⚔️ <strong>Skakmat:</strong> Raja lawan tidak bisa menghindar dari serangan</li>
+                                <li>⏰ <strong>Timeout:</strong> Waktu lawan habis</li>
+                                <li>🏳️ <strong>Menyerah:</strong> Lawan menyerah</li>
+                            </ul>
+                        </div>
+
+                        <div class="condition-card draw">
+                            <h4>🤝 SERI</h4>
+                            <ul>
+                                <li>🔒 <strong>Stalemate:</strong> Tidak ada gerakan legal tapi raja tidak dalam skak</li>
+                                <li>💤 <strong>Aturan 50 Langkah:</strong> 50 gerakan tanpa tangkapan atau gerak pion</li>
+                                <li>🔄 <strong>Pengulangan 3x:</strong> Posisi yang sama terulang 3 kali</li>
+                                <li>⚖️ <strong>Material Kurang:</strong> Tidak cukup bidak untuk skakmat</li>
+                                <li>🤝 <strong>Kesepakatan:</strong> Kedua pemain setuju seri</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips Strategi -->
+                <div class="guide-section">
+                    <h3>🧠 Tips Strategi Dasar</h3>
+                    
+                    <div class="strategy-tips">
+                        <div class="tip-category">
+                            <h4>🚀 Opening (Pembukaan)</h4>
+                            <ul>
+                                <li>📡 Keluarkan bidak minor (kuda & gajah) dulu</li>
+                                <li>👑 Amankan raja dengan rokade</li>
+                                <li>🎯 Kontrol kotak-kotak tengah (d4, d5, e4, e5)</li>
+                                <li>🚫 Jangan keluarkan ratu terlalu awal</li>
+                            </ul>
+                        </div>
+
+                        <div class="tip-category">
+                            <h4>⚔️ Middlegame (Permainan Tengah)</h4>
+                            <ul>
+                                <li>🎪 Tingkatkan posisi bidak Anda</li>
+                                <li>🎯 Serang kelemahan lawan</li>
+                                <li>🛡️ Jaga raja tetap aman</li>
+                                <li>🔥 Cari taktik: pin, fork, skewer</li>
+                            </ul>
+                        </div>
+
+                        <div class="tip-category">
+                            <h4>🏁 Endgame (Akhir Permainan)</h4>
+                            <ul>
+                                <li>👑 Aktifkan raja Anda</li>
+                                <li>🏃 Dorong pion untuk promosi</li>
+                                <li>🎯 Centralisasi raja</li>
+                                <li>⚡ Hitung dengan teliti</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nilai Bidak -->
+                <div class="guide-section">
+                    <h3>💰 Nilai Bidak Catur</h3>
+                    <div class="piece-values">
+                        <div class="value-item">
+                            <span class="piece">♙♟</span>
+                            <span class="name">Pion</span>
+                            <span class="value">1 poin</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="piece">♘♞</span>
+                            <span class="name">Kuda</span>
+                            <span class="value">3 poin</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="piece">♗♝</span>
+                            <span class="name">Gajah</span>
+                            <span class="value">3 poin</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="piece">♖♜</span>
+                            <span class="name">Benteng</span>
+                            <span class="value">5 poin</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="piece">♕♛</span>
+                            <span class="name">Ratu</span>
+                            <span class="value">9 poin</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="piece">♔♚</span>
+                            <span class="name">Raja</span>
+                            <span class="value">∞ poin</span>
+                        </div>
+                    </div>
+                    <p>📊 <strong>Gunakan nilai ini untuk mengevaluasi pertukaran bidak!</strong></p>
+                </div>
+
+                <!-- Notasi Catur -->
+                <div class="guide-section">
+                    <h3>📝 Notasi Catur Dasar</h3>
+                    <div class="notation-guide">
+                        <div class="notation-item">
+                            <span class="notation">e4</span>
+                            <span class="explanation">Pion ke e4</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">Nf3</span>
+                            <span class="explanation">Knight (kuda) ke f3</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">Bb5</span>
+                            <span class="explanation">Bishop (gajah) ke b5</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">Qd1</span>
+                            <span class="explanation">Queen (ratu) ke d1</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">Rd8</span>
+                            <span class="explanation">Rook (benteng) ke d8</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">Kg1</span>
+                            <span class="explanation">King (raja) ke g1</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">O-O</span>
+                            <span class="explanation">Rokade pendek (kingside)</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">O-O-O</span>
+                            <span class="explanation">Rokade panjang (queenside)</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">x</span>
+                            <span class="explanation">Menangkap (capture)</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">+</span>
+                            <span class="explanation">Skak (check)</span>
+                        </div>
+                        <div class="notation-item">
+                            <span class="notation">#</span>
+                            <span class="explanation">Skakmat (checkmate)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="how-to-play-footer">
+                <button class="how-to-play-close-btn">✅ Mulai Bermain!</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Theme Modal -->
     <div id="themeModal" class="modal">
         <div class="modal-content theme-modal">
@@ -703,8 +1161,8 @@
                     
                     <div class="theme-card" data-theme="forest">
                         <div class="theme-preview forest-preview"></div>
-                        <h4>🌸 Anime 1</h4>
-                        <p>Tema anime dengan pemandangan indah</p>
+                        <h4>🌸 Anime Sakura</h4>
+                        <p>Tema anime dengan pemandangan sakura yang indah</p>
                     </div>
                 </div>
                 

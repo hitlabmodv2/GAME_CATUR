@@ -37,13 +37,13 @@ function applyWebConfig() {
     // Update welcome title if exists
     const welcomeTitle = document.querySelector('.welcome-title');
     if (welcomeTitle) {
-        welcomeTitle.textContent = `🤠 ${WebConfig.siteName.toUpperCase()} 🤠`;
+        welcomeTitle.textContent = ` ${WebConfig.siteName.toUpperCase()}`;
     }
     
     // Update game title if exists
     const gameTitle = document.querySelector('.game-title');
     if (gameTitle) {
-        gameTitle.textContent = `🤠 ${WebConfig.siteName.toUpperCase()} 🤠`;
+        gameTitle.textContent = ` ${WebConfig.siteName.toUpperCase()}`;
     }
 }
 

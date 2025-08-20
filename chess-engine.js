@@ -11,6 +11,15 @@ class ChessEngine {
         this.botBlackDifficulty = 'medium';
         this.botSpeed = 2000;
         this.gameStatus = 'playing'; // Added gameStatus
+        
+        // Castling rights tracking
+        this.castlingRights = {
+            white: { kingside: true, queenside: true },
+            black: { kingside: true, queenside: true }
+        };
+        
+        // En passant target square
+        this.enPassantTarget = null;
 
         // Piece values untuk AI dengan variasi berdasarkan difficulty
         this.pieceValues = {
@@ -145,6 +154,11 @@ class ChessEngine {
             if (wouldBeInCheck) return false;
         }
         
+        // Check for castling move
+        if (piece.type === 'king' && Math.abs(toCol - fromCol) === 2) {
+            return this.isValidCastling(piece.color, fromRow, fromCol, toRow, toCol);
+        }
+        
         // Validasi gerakan dasar bidak
         if (!this.isValidPieceMove(piece, fromRow, fromCol, toRow, toCol)) {
             return false;
@@ -203,9 +217,19 @@ class ChessEngine {
             }
         }
 
-        // Capture move
+        // Capture move (regular or en passant)
         if (colDiff === 1 && rowDiff === direction) {
-            return this.board[toRow][toCol] && this.board[toRow][toCol].color !== piece.color;
+            // Regular capture
+            if (this.board[toRow][toCol] && this.board[toRow][toCol].color !== piece.color) {
+                return true;
+            }
+            
+            // En passant capture
+            if (this.enPassantTarget && 
+                toRow === this.enPassantTarget.row && 
+                toCol === this.enPassantTarget.col) {
+                return true;
+            }
         }
 
         return false;
@@ -227,9 +251,92 @@ class ChessEngine {
         return true;
     }
 
+    isValidCastling(color, fromRow, fromCol, toRow, toCol) {
+        // King must be on starting position
+        const startRow = color === 'white' ? 7 : 0;
+        if (fromRow !== startRow || fromCol !== 4) return false;
+        
+        // Target must be on same row
+        if (toRow !== startRow) return false;
+        
+        // Check castling rights
+        const isKingside = toCol === 6;
+        const isQueenside = toCol === 2;
+        
+        if (!isKingside && !isQueenside) return false;
+        
+        if (isKingside && !this.castlingRights[color].kingside) return false;
+        if (isQueenside && !this.castlingRights[color].queenside) return false;
+        
+        // King must not be in check
+        if (this.isInCheck(color)) return false;
+        
+        // Path must be clear
+        const rookCol = isKingside ? 7 : 0;
+        const pathStart = Math.min(fromCol, isKingside ? toCol : rookCol);
+        const pathEnd = Math.max(fromCol, isKingside ? toCol : rookCol);
+        
+        for (let col = pathStart + 1; col < pathEnd; col++) {
+            if (this.board[startRow][col]) return false;
+        }
+        
+        // King cannot pass through or end in check
+        const direction = isKingside ? 1 : -1;
+        for (let step = 1; step <= 2; step++) {
+            const testCol = fromCol + (step * direction);
+            
+            // Simulate king movement
+            const originalPiece = this.board[startRow][testCol];
+            this.board[startRow][testCol] = { type: 'king', color: color };
+            this.board[fromRow][fromCol] = null;
+            
+            const wouldBeInCheck = this.isInCheck(color);
+            
+            // Restore position
+            this.board[fromRow][fromCol] = { type: 'king', color: color };
+            this.board[startRow][testCol] = originalPiece;
+            
+            if (wouldBeInCheck) return false;
+        }
+        
+        // Check if rook is in correct position
+        const rook = this.board[startRow][rookCol];
+        if (!rook || rook.type !== 'rook' || rook.color !== color) return false;
+        
+        return true;
+    }
+
     makeMove(fromRow, fromCol, toRow, toCol, promotionPiece = 'queen') {
         const piece = this.board[fromRow][fromCol];
         const capturedPiece = this.board[toRow][toCol];
+        let enPassantCapture = null;
+        let castlingMove = null;
+
+        // Check for en passant capture
+        if (piece.type === 'pawn' && this.enPassantTarget && 
+            toRow === this.enPassantTarget.row && toCol === this.enPassantTarget.col) {
+            const captureRow = piece.color === 'white' ? toRow + 1 : toRow - 1;
+            enPassantCapture = this.board[captureRow][toCol];
+            this.board[captureRow][toCol] = null;
+        }
+
+        // Check for castling
+        if (piece.type === 'king' && Math.abs(toCol - fromCol) === 2) {
+            const isKingside = toCol > fromCol;
+            const rookFromCol = isKingside ? 7 : 0;
+            const rookToCol = isKingside ? 5 : 3;
+            const rookRow = fromRow;
+            
+            // Move rook
+            const rook = this.board[rookRow][rookFromCol];
+            this.board[rookRow][rookToCol] = rook;
+            this.board[rookRow][rookFromCol] = null;
+            
+            castlingMove = {
+                rookFrom: { row: rookRow, col: rookFromCol },
+                rookTo: { row: rookRow, col: rookToCol }
+            };
+        }
 
         // Check for pawn promotion
         let finalPiece = piece;
@@ -244,14 +351,24 @@ class ChessEngine {
             }
         }
 
+        // Update castling rights
+        this.updateCastlingRights(piece, fromRow, fromCol, toRow, toCol);
+
+        // Update en passant target
+        this.updateEnPassantTarget(piece, fromRow, fromCol, toRow, toCol);
+
         // Record move
         const move = {
             from: { row: fromRow, col: fromCol },
             to: { row: toRow, col: toCol },
             piece: piece,
-            captured: capturedPiece,
+            captured: capturedPiece || enPassantCapture,
             player: this.currentPlayer,
-            promotion: isPromotion ? promotionPiece : null
+            promotion: isPromotion ? promotionPiece : null,
+            enPassantCapture: enPassantCapture,
+            castling: castlingMove,
+            oldCastlingRights: JSON.parse(JSON.stringify(this.castlingRights)),
+            oldEnPassantTarget: this.enPassantTarget
         };
 
         this.gameHistory.push(move);
@@ -266,14 +383,80 @@ class ChessEngine {
         return move;
     }
 
+    updateCastlingRights(piece, fromRow, fromCol, toRow, toCol) {
+        const color = piece.color;
+        
+        // King move removes all castling rights for that color
+        if (piece.type === 'king') {
+            this.castlingRights[color].kingside = false;
+            this.castlingRights[color].queenside = false;
+        }
+        
+        // Rook move removes castling rights for that side
+        if (piece.type === 'rook') {
+            const startRow = color === 'white' ? 7 : 0;
+            if (fromRow === startRow) {
+                if (fromCol === 0) { // Queenside rook
+                    this.castlingRights[color].queenside = false;
+                } else if (fromCol === 7) { // Kingside rook
+                    this.castlingRights[color].kingside = false;
+                }
+            }
+        }
+        
+        // Rook capture removes castling rights
+        const capturedPiece = this.board[toRow][toCol];
+        if (capturedPiece && capturedPiece.type === 'rook') {
+            const opponentColor = capturedPiece.color;
+            const startRow = opponentColor === 'white' ? 7 : 0;
+            if (toRow === startRow) {
+                if (toCol === 0) { // Queenside rook captured
+                    this.castlingRights[opponentColor].queenside = false;
+                } else if (toCol === 7) { // Kingside rook captured
+                    this.castlingRights[opponentColor].kingside = false;
+                }
+            }
+        }
+    }
+
+    updateEnPassantTarget(piece, fromRow, fromCol, toRow, toCol) {
+        this.enPassantTarget = null;
+        
+        // Set en passant target for pawn double move
+        if (piece.type === 'pawn' && Math.abs(toRow - fromRow) === 2) {
+            const targetRow = piece.color === 'white' ? fromRow - 1 : fromRow + 1;
+            this.enPassantTarget = { row: targetRow, col: fromCol };
+        }
+    }
+
     undoMove() {
         if (this.gameHistory.length === 0) return null;
 
         const lastMove = this.gameHistory.pop();
 
-        // Restore original pawn if it was a promotion
+        // Restore pieces
         this.board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
         this.board[lastMove.to.row][lastMove.to.col] = lastMove.captured;
+
+        // Restore en passant capture
+        if (lastMove.enPassantCapture) {
+            const captureRow = lastMove.piece.color === 'white' ? lastMove.to.row + 1 : lastMove.to.row - 1;
+            this.board[captureRow][lastMove.to.col] = lastMove.enPassantCapture;
+        }
+
+        // Restore castling
+        if (lastMove.castling) {
+            // Move rook back
+            const rook = this.board[lastMove.castling.rookTo.row][lastMove.castling.rookTo.col];
+            this.board[lastMove.castling.rookFrom.row][lastMove.castling.rookFrom.col] = rook;
+            this.board[lastMove.castling.rookTo.row][lastMove.castling.rookTo.col] = null;
+        }
+
+        // Restore castling rights and en passant target
+        if (lastMove.oldCastlingRights) {
+            this.castlingRights = lastMove.oldCastlingRights;
+        }
+        this.enPassantTarget = lastMove.oldEnPassantTarget;
 
         // Switch back player
         this.currentPlayer = this.currentPlayer === 'white' ? 'black' : 'white';
@@ -508,11 +691,14 @@ class ChessEngine {
         const settings = this.difficultySettings['expert'];
         
         // Expert: Evaluasi mendalam dengan strategic bonus
+        // PERBAIKAN: Pastikan selalu return valid move
         if (Math.random() < settings.randomness) {
-            return this.getBestMoveFromEvaluation(moves, 2);
+            const move = this.getBestMoveFromEvaluation(moves, 2);
+            return move || moves[Math.floor(Math.random() * moves.length)];
         }
 
-        return this.getBestMoveFromEvaluation(moves, settings.depth, true);
+        const bestMove = this.getBestMoveFromEvaluation(moves, settings.depth, true);
+        return bestMove || moves[Math.floor(Math.random() * moves.length)];
     }
 
     getMasterBotMove(moves) {
@@ -526,7 +712,9 @@ class ChessEngine {
         const settings = this.difficultySettings['grandmaster'];
         
         // Grandmaster: Hampir sempurna dengan evaluasi maksimal
-        return this.getBestMoveFromEvaluation(moves, settings.depth, true, 2.0);
+        // PERBAIKAN: Pastikan selalu return valid move
+        const bestMove = this.getBestMoveFromEvaluation(moves, settings.depth, true, 2.0);
+        return bestMove || moves[Math.floor(Math.random() * moves.length)];
     }
 
     getBestMoveFromEvaluation(moves, depth, useStrategicBonus = false, strategicMultiplier = 1.0) {
@@ -989,5 +1177,14 @@ class ChessEngine {
         this.gameHistory = [];
         this.gameEnded = false;
         this.gameStatus = 'playing'; // Reset gameStatus
+        
+        // Reset castling rights
+        this.castlingRights = {
+            white: { kingside: true, queenside: true },
+            black: { kingside: true, queenside: true }
+        };
+        
+        // Reset en passant
+        this.enPassantTarget = null;
     }
 }
